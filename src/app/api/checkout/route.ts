@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     campaign_id: appealCampaignId,
   };
 
-  const baseUrl = requireEnv("APP_BASE_URL");
+  const baseUrl = requireEnv("APP_BASE_URL").replace(/\/$/, "");
   const success = `${baseUrl}/give/${org.slug}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
   const cancel = `${baseUrl}/give/${org.slug}?canceled=1`;
   const connectedAccount = org.stripe_account_id;
