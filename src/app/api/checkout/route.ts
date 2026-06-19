@@ -185,7 +185,16 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url, id: session.id });
   } catch (err) {
+    // Surface the Stripe message (not sensitive) so misconfig is diagnosable.
+    const e = err as { message?: string; code?: string; type?: string };
     console.error("[checkout] Stripe error", err);
-    return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Could not start checkout. Please try again.",
+        detail: e?.message ?? "unknown",
+        code: e?.code ?? e?.type ?? null,
+      },
+      { status: 500 },
+    );
   }
 }
