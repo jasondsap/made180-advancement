@@ -10,6 +10,7 @@ next-env.d.ts
 
 # production
 /build
+/docs
 
 # env — never commit real secrets
 .env
@@ -33,3 +34,6 @@ yarn-error.log*
 
 # local dev server log
 .devserver.log
+
+# internal reference docs (kept local, not in repo)
+Docs/
