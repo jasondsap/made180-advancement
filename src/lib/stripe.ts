@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { env } from "@/lib/env";
+import { requireEnv } from "@/lib/env";
 
 /**
  * Platform Stripe client (server-only). The platform account holds the keys;
@@ -15,7 +15,7 @@ let cached: Stripe | null = null;
 
 export function getStripe(): Stripe {
   if (!cached) {
-    cached = new Stripe(env().STRIPE_SECRET_KEY, {
+    cached = new Stripe(requireEnv("STRIPE_SECRET_KEY"), {
       apiVersion: STRIPE_API_VERSION,
       typescript: true,
       appInfo: { name: "MADe180 Advancement Platform" },

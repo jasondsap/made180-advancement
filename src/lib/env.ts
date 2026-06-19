@@ -1,80 +1,60 @@
-import { z } from "zod";
-
 /**
- * Centralized, validated environment access (server-only).
+ * Centralized environment access (server-only).
  *
- * Validation is lazy (parsed on first `env()` call, cached) so `next build`
- * doesn't fail when secrets are absent in CI.
+ * Two important properties for AWS Amplify SSR:
+ *  1. `env()` NEVER throws for a missing var — every field is optional. This keeps
+ *     `next build` from failing during page-data collection when secrets aren't
+ *     present. Code enforces what it needs at runtime via `requireEnv(...)`.
+ *  2. Each var is read as a LITERAL `process.env.KEY`, not via the whole
+ *     `process.env` object. Next's `next.config` `env:` block does static
+ *     replacement of `process.env.KEY` at build time, so literal access is what
+ *     lets those values reach the Amplify SSR Lambda at runtime.
  *
- * Two tiers:
- *  - REQUIRED: the platform can't run a request without these.
- *  - OPTIONAL: belong to a specific feature (Connect onboarding, Cognito admin,
- *    Resend receipts, Anthropic assistant). They're validated at their point of
- *    use via `requireEnv(...)`, so an unconfigured future feature never breaks
- *    an unrelated working route.
- *
- * The migration runner (scripts/migrate.ts) deliberately does NOT import this —
- * it reads DATABASE_URL_UNPOOLED directly so it can run with a minimal env.
+ * The migration runner (scripts/migrate.ts) reads DATABASE_URL_UNPOOLED directly.
  */
-const EnvSchema = z.object({
-  // --- REQUIRED ---
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required (Neon pooled)"),
-  DATABASE_URL_UNPOOLED: z
-    .string()
-    .min(1, "DATABASE_URL_UNPOOLED is required (Neon direct, for migrations)"),
-  STRIPE_SECRET_KEY: z.string().min(1),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  APP_BASE_URL: z.string().url(),
 
-  // --- OPTIONAL (validated at point of use via requireEnv) ---
-  // Connect Express onboarding (account links):
-  STRIPE_CONNECT_CLIENT_ID: z.string().optional(),
-  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
-  // Cognito admin auth (step 8):
-  COGNITO_REGION: z.string().optional(),
-  COGNITO_USER_POOL_ID: z.string().optional(),
-  COGNITO_CLIENT_ID: z.string().optional(),
-  COGNITO_CLIENT_SECRET: z.string().optional(),
-  COGNITO_DOMAIN: z.string().optional(),
-  // Receipts (step 6):
-  RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_FALLBACK: z.string().optional(),
-  // AI assistant (phase 2):
-  ANTHROPIC_API_KEY: z.string().optional(),
-});
+// Literal reads so `next.config` env inlining works in the Amplify Lambda.
+function readEnv() {
+  return {
+    DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_CONNECT_CLIENT_ID: process.env.STRIPE_CONNECT_CLIENT_ID,
+    STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+    COGNITO_REGION: process.env.COGNITO_REGION,
+    COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID,
+    COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID,
+    COGNITO_CLIENT_SECRET: process.env.COGNITO_CLIENT_SECRET,
+    COGNITO_DOMAIN: process.env.COGNITO_DOMAIN,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_FALLBACK: process.env.RESEND_FROM_FALLBACK,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    APP_BASE_URL: process.env.APP_BASE_URL,
+  };
+}
 
-export type Env = z.infer<typeof EnvSchema>;
+export type Env = ReturnType<typeof readEnv>;
+export type EnvKey = keyof Env;
 
-let cached: Env | null = null;
-
+/** Returns all env vars (any may be undefined). Never throws — safe at build. */
 export function env(): Env {
-  if (cached) return cached;
-  const parsed = EnvSchema.safeParse(process.env);
-  if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
-      .join("\n");
-    throw new Error(
-      `Invalid or missing environment variables:\n${issues}\n` +
-        `See .env.local.example for the full list.`,
-    );
-  }
-  cached = parsed.data;
-  return cached;
+  return readEnv();
 }
 
 /**
- * Fetch a feature-specific env var, throwing a clear error if it isn't set.
- * Use at the point a feature actually needs its variable.
+ * Fetch a var that a feature actually needs, throwing a clear runtime error if
+ * it's missing. Use at the point of use so a missing var fails the request, not
+ * the build.
  */
-export function requireEnv<K extends keyof Env>(key: K): NonNullable<Env[K]> {
+export function requireEnv(key: EnvKey): string {
   const value = env()[key];
   if (value === undefined || value === "") {
     throw new Error(
-      `Environment variable ${String(key)} is required for this feature but is not set. ` +
-        `Add it to .env.local (see .env.local.example).`,
+      `Environment variable ${key} is required for this feature but is not set. ` +
+        `Set it in .env.local (dev) or the Amplify environment variables (prod).`,
     );
   }
-  return value as NonNullable<Env[K]>;
+  return value;
 }

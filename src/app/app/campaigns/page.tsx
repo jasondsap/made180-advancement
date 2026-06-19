@@ -15,7 +15,7 @@ export default async function CampaignsPage() {
     listAppeals(ctx.orgId),
     getOrgById(ctx.orgId),
   ]);
-  const base = env().APP_BASE_URL.replace(/\/$/, "");
+  const base = (env().APP_BASE_URL ?? "").replace(/\/$/, "");
 
   return (
     <div style={{ maxWidth: 820 }}>

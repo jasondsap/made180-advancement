@@ -12,7 +12,7 @@ import { env, requireEnv } from "@/lib/env";
  * call when COGNITO_CLIENT_SECRET is set).
  */
 function baseUrl(): string {
-  return env().APP_BASE_URL.replace(/\/$/, "");
+  return requireEnv("APP_BASE_URL").replace(/\/$/, "");
 }
 
 function cfg() {

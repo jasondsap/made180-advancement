@@ -20,7 +20,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
-import { env } from "@/lib/env";
+import { requireEnv } from "@/lib/env";
 import {
   claimWebhookEvent,
   setWebhookEventOrg,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
   try {
     if (!sig) throw new Error("missing stripe-signature header");
-    event = stripe.webhooks.constructEvent(rawBody, sig, env().STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(rawBody, sig, requireEnv("STRIPE_WEBHOOK_SECRET"));
   } catch (err) {
     console.error("[webhook] signature verification failed", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });

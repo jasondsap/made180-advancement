@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getAuthorizeUrl } from "@/lib/cognito";
-import { env } from "@/lib/env";
+import { requireEnv } from "@/lib/env";
 import { STATE_COOKIE } from "@/lib/authConstants";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const res = NextResponse.redirect(getAuthorizeUrl(state));
   res.cookies.set(STATE_COOKIE, csrf, {
     httpOnly: true,
-    secure: env().APP_BASE_URL.startsWith("https"),
+    secure: requireEnv("APP_BASE_URL").startsWith("https"),
     sameSite: "lax",
     path: "/",
     maxAge: 600,

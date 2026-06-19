@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { exchangeCodeForTokens, verifyIdToken } from "@/lib/cognito";
-import { env } from "@/lib/env";
+import { requireEnv } from "@/lib/env";
 import { SESSION_COOKIE, STATE_COOKIE } from "@/lib/authConstants";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state") ?? "";
   const error = url.searchParams.get("error");
-  const base = env().APP_BASE_URL.replace(/\/$/, "");
+  const base = requireEnv("APP_BASE_URL").replace(/\/$/, "");
 
   if (error) {
     return NextResponse.redirect(`${base}/auth-error?reason=${encodeURIComponent(error)}`);

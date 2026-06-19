@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { env } from "@/lib/env";
+import { requireEnv } from "@/lib/env";
 
 /**
  * Neon HTTP client for app request-time queries, over the POOLED connection.
@@ -22,7 +22,7 @@ let cached: NeonClient | null = null;
 
 export function getSql(): NeonClient {
   if (!cached) {
-    cached = neon(env().DATABASE_URL);
+    cached = neon(requireEnv("DATABASE_URL"));
   }
   return cached;
 }

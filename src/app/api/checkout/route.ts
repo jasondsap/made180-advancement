@@ -16,7 +16,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { z } from "zod";
 import { getStripe } from "@/lib/stripe";
-import { env } from "@/lib/env";
+import { requireEnv } from "@/lib/env";
 import { getOrgBySlug } from "@/repositories/orgs";
 import { getFundByCode } from "@/repositories/funds";
 import { getAppealById } from "@/repositories/appeals";
@@ -117,8 +117,9 @@ export async function POST(req: NextRequest) {
     campaign_id: appealCampaignId,
   };
 
-  const success = `${env().APP_BASE_URL}/give/${org.slug}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
-  const cancel = `${env().APP_BASE_URL}/give/${org.slug}?canceled=1`;
+  const baseUrl = requireEnv("APP_BASE_URL");
+  const success = `${baseUrl}/give/${org.slug}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
+  const cancel = `${baseUrl}/give/${org.slug}?canceled=1`;
   const connectedAccount = org.stripe_account_id;
 
   const stripe = getStripe();
