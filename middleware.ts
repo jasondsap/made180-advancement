@@ -1,23 +1,14 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE } from "@/lib/authConstants";
+import { withAuth } from "next-auth/middleware";
 
 /**
- * Edge guard for /app/*: if there's no session cookie, bounce to login. Full
- * cryptographic verification (and role checks) happen in the /app server layout
- * via getAppUser() — middleware only does the cheap presence gate so unrelated
- * Node-only auth code never enters the Edge bundle.
+ * Guard /app/* with NextAuth. Unauthenticated requests are redirected to the
+ * Cognito sign-in page. Token verification uses NEXTAUTH_SECRET (available at the
+ * Edge via the next.config env block).
  */
-export function middleware(req: NextRequest) {
-  const hasSession = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!hasSession) {
-    const url = new URL("/api/auth/login", req.url);
-    url.searchParams.set("returnTo", req.nextUrl.pathname + req.nextUrl.search);
-    return NextResponse.redirect(url);
-  }
-  return NextResponse.next();
-}
+export default withAuth({
+  pages: { signIn: "/auth/signin" },
+});
 
 export const config = {
-  // Guard the admin app, but never the auth routes or the error page.
   matcher: ["/app/:path*"],
 };

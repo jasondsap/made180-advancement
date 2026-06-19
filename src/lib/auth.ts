@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
-import { verifyIdToken, type IdClaims } from "@/lib/cognito";
-import { SESSION_COOKIE, ACTIVE_ORG_COOKIE } from "@/lib/authConstants";
+import { getServerSession } from "next-auth";
+import { env } from "@/lib/env";
+import { getAuthOptions } from "@/lib/auth-options";
+import { ACTIVE_ORG_COOKIE } from "@/lib/authConstants";
 import {
   getUserByCognitoSub,
   getUserByEmail,
@@ -24,34 +26,27 @@ export interface AppUser {
 /** The default org a super_admin lands on when they have no membership. */
 const DEFAULT_ORG_SLUG = "nvre";
 
-async function getClaims(): Promise<IdClaims | null> {
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  try {
-    return await verifyIdToken(token);
-  } catch {
-    return null; // expired/invalid → treated as logged out
-  }
-}
-
 /**
- * Resolve the authenticated user from the session cookie. Reconciles the seeded
- * super_admin row to its Cognito sub on first login; auto-provisions a bare
- * (access-less) user otherwise.
+ * Resolve the authenticated user from the NextAuth session. The signIn callback
+ * already reconciled/created the users row, but we defensively re-reconcile here
+ * (seeded super_admin matched by email) so this works even on the first request.
  */
 export async function getAppUser(): Promise<AppUser | null> {
-  const claims = await getClaims();
-  if (!claims) return null;
+  // If auth isn't configured (e.g. during `next build`), treat as unauthenticated
+  // rather than throwing — keeps the build green; runtime has the vars.
+  if (!env().NEXTAUTH_SECRET || !env().COGNITO_CLIENT_ID) return null;
+  const session = await getServerSession(getAuthOptions());
+  const sub = (session?.user as { id?: string } | undefined)?.id;
+  if (!sub) return null;
+  const email = session?.user?.email ?? "";
+  const name = session?.user?.name ?? null;
 
-  let user = await getUserByCognitoSub(claims.sub);
-  if (!user && claims.email) {
-    const seeded = await getUserByEmail(claims.email);
-    if (seeded) user = await reconcileCognitoSub(seeded.id, claims.sub);
+  let user = await getUserByCognitoSub(sub);
+  if (!user && email) {
+    const seeded = await getUserByEmail(email);
+    if (seeded) user = await reconcileCognitoSub(seeded.id, sub);
   }
-  if (!user) {
-    user = await createUserFromCognito(claims.sub, claims.email, claims.name ?? null);
-  }
+  if (!user) user = await createUserFromCognito(sub, email, name);
 
   const memberships = await listMembershipsForUser(user.id);
   return {
@@ -67,17 +62,12 @@ export function canAccessOrg(user: AppUser, orgId: string): boolean {
   return user.isSuperAdmin || user.memberships.some((m) => m.orgId === orgId);
 }
 
-/** Effective role within an org, or null if no access. */
 export function roleFor(user: AppUser, orgId: string): Role | null {
   if (user.isSuperAdmin) return "super_admin";
   const m = user.memberships.find((mm) => mm.orgId === orgId);
   return m ? m.role : null;
 }
 
-/**
- * The org the user is currently acting within: the cookie selection if allowed,
- * else their first membership, else (super_admin) the default org.
- */
 export async function resolveActiveOrgId(user: AppUser): Promise<string | null> {
   const jar = await cookies();
   const cookieOrg = jar.get(ACTIVE_ORG_COOKIE)?.value;
@@ -90,7 +80,6 @@ export async function resolveActiveOrgId(user: AppUser): Promise<string | null> 
   return null;
 }
 
-/** Convenience for server components/actions: the user + their active org + role. */
 export interface AuthContext {
   user: AppUser;
   orgId: string;
@@ -101,13 +90,12 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const user = await getAppUser();
   if (!user) return null;
   const orgId = await resolveActiveOrgId(user);
-  if (!orgId) return null; // authenticated but no org access
+  if (!orgId) return null;
   const role = roleFor(user, orgId);
   if (!role) return null;
   return { user, orgId, role };
 }
 
-/** True if the role may write settings/CRUD (org_admin or super_admin). */
 export function canManage(role: Role): boolean {
   return role === "super_admin" || role === "org_admin";
 }

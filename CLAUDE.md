@@ -30,25 +30,36 @@ Resend (receipt email) · jsPDF (receipts) · Recharts (dashboard) · Anthropic 
 - `migrations/` — numbered SQL (0001 init, 0002 NVRE seed, 0003 users/memberships/
   receipt_counters/fixes, 0004 super_admin seed, 0005 gift benefit/quid-pro-quo).
   Runner: `scripts/migrate.ts` (uses `DATABASE_URL_UNPOOLED`).
-- `src/lib/` — `env.ts` (zod, required vs feature-optional + `requireEnv`),
-  `db.ts` (Neon pooled `sql`), `tenancy.ts`, `stripe.ts`, `cognito.ts`, `auth.ts`,
-  `email.ts`, `anthropic.ts`, `format.ts`, `authConstants.ts`.
+- `src/lib/` — `env.ts` (all-optional, literal reads + `requireEnv`; build-safe),
+  `db.ts` (Neon pooled `sql`), `tenancy.ts`, `stripe.ts`, `auth.ts`,
+  `auth-options.ts` (NextAuth + Cognito, lazy `getAuthOptions()`), `email.ts`,
+  `anthropic.ts`, `format.ts`, `authConstants.ts`.
 - `src/repositories/` — orgs, constituents, gifts, funds, campaigns, appeals,
   pledges, recurringPlans, webhookEvents, users, attributes, relationships,
   analytics, reports. All `orgId`-scoped.
 - `src/domain/` — fees, receiptPdf, receipts, yearEndPdf, quickbooksCsv, assistant.
 - `src/app/give/[orgSlug]/` — public donation page (one-time + monthly).
-- `src/app/api/` — checkout, stripe/webhook, auth/{login,callback,logout},
-  assistant/{query,thank-you}, export/quickbooks, year-end/[constituentId].
-- `src/app/app/` — Cognito-protected admin: dashboard, gifts, constituents,
+- `src/app/api/` — checkout, stripe/webhook, auth/[...nextauth] (NextAuth),
+  auth/cognito-logout (federated logout), assistant/{query,thank-you},
+  export/quickbooks, year-end/[constituentId].
+- `src/app/auth/signin` — branded sign-in page (calls `signIn('cognito')`).
+- `src/app/app/` — admin (force-dynamic): dashboard, gifts, constituents,
   pledges, reports, funds, campaigns, assistant, settings.
-- `middleware.ts` — Edge gate on `/app/*` (cookie presence; full verify in layout).
+- `middleware.ts` — NextAuth `withAuth` gate on `/app/*` → redirects to /auth/signin.
+
+## Auth
+NextAuth.js v4 + AWS Cognito provider (Authorization Code + PKCE, JWT session),
+matching the DDOR pattern. Callback path is the NextAuth standard
+`/api/auth/callback/cognito`. The `signIn` callback (and `getAppUser` defensively)
+reconciles the Cognito identity to the `users` table — the seeded super_admin is
+matched by email on first login. `getAuthContext()` is the single integration
+point returning `{ user, orgId, role }`; everything downstream uses it.
+Env: COGNITO_* + NEXTAUTH_URL + NEXTAUTH_SECRET (+ optional COGNITO_ISSUER).
 
 ## Roles
 `super_admin` (platform-wide, `users.is_super_admin`), `org_admin`, `org_staff`
 (via `memberships`). `canManage` = admin+. Settings/CRUD/refunds = admin only;
-gift & constituent entry = any role. Seeded super_admin: jason@made180.com
-(cognito_sub reconciled by email on first login).
+gift & constituent entry = any role. Seeded super_admin: jason@made180.com.
 
 ## Dev
 - `npm run dev` (defaults to port 3000 — match `APP_BASE_URL`).

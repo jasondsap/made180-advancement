@@ -3,6 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAppUser, resolveActiveOrgId, roleFor } from "@/lib/auth";
 import { getOrgById } from "@/repositories/orgs";
+import { SignOutButton } from "@/components/SignOutButton";
+
+// The admin app is per-user, per-org and session-dependent — never static.
+export const dynamic = "force-dynamic";
 
 /**
  * Admin shell. Middleware guarantees a session cookie exists; here we do the
@@ -11,7 +15,7 @@ import { getOrgById } from "@/repositories/orgs";
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getAppUser();
-  if (!user) redirect("/api/auth/login");
+  if (!user) redirect("/auth/signin");
 
   const orgId = await resolveActiveOrgId(user);
   if (!orgId) return <NoAccess email={user.email} />;
@@ -48,9 +52,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <span style={{ fontSize: ".8rem", color: "#666" }}>
             {user.email} · <RoleBadge role={role} />
           </span>
-          <Link href="/api/auth/logout" style={{ fontSize: ".85rem", color: "#1c6e3c", textDecoration: "none" }}>
-            Sign out
-          </Link>
+          <SignOutButton style={{ fontSize: ".85rem", color: "#1c6e3c" }} />
         </div>
       </header>
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1.25rem 4rem" }}>{children}</main>
@@ -72,7 +74,7 @@ function NoAccess({ email }: { email: string }) {
         organization yet. Ask an administrator to grant you access.
       </p>
       <p style={{ marginTop: "1.5rem" }}>
-        <Link href="/api/auth/logout" style={{ color: "#1c6e3c" }}>Sign out</Link>
+        <SignOutButton style={{ color: "#1c6e3c" }} />
       </p>
     </main>
   );
