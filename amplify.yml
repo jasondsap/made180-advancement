@@ -1,0 +1,21 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+        # Optional: run DB migrations during deploy. Requires DATABASE_URL_UNPOOLED
+        # in Amplify env vars. Comment out to run migrations manually instead.
+        - npm run migrate
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    # Amplify auto-detects the Next.js App Router (SSR/WEB_COMPUTE) adapter.
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
