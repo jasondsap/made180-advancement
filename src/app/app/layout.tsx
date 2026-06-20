@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getAppUser, resolveActiveOrgId, roleFor } from "@/lib/auth";
+import { getAppUser, resolveActiveOrgId, roleFor, listAccessibleOrgs } from "@/lib/auth";
 import { getOrgById } from "@/repositories/orgs";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ArchMark } from "@/components/ArchMark";
+import { OrgSwitcher } from "@/components/OrgSwitcher";
+import { setActiveOrgAction } from "./orgActions";
 
 // The admin app is per-user, per-org and session-dependent — never static.
 export const dynamic = "force-dynamic";
@@ -23,6 +25,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const role = roleFor(user, orgId)!;
   const org = await getOrgById(orgId);
+  const accessibleOrgs = await listAccessibleOrgs(user);
 
   const nav = [
     { href: "/app/dashboard", label: "Dashboard" },
@@ -35,6 +38,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: "/app/assistant", label: "Assistant" },
     { href: "/app/settings", label: "Settings" },
   ];
+  if (role === "super_admin") nav.push({ href: "/app/admin/orgs", label: "Admin" });
 
   return (
     <div style={{ fontFamily: "var(--font-ui)", color: "var(--app-text)", minHeight: "100vh", background: "var(--app-bg)" }}>
@@ -44,10 +48,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <ArchMark height={26} />
             <span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.15rem", color: "var(--ink)" }}>Almonry</span>
           </Link>
-          {org?.legal_name && (
-            <span style={{ fontSize: ".78rem", color: "var(--app-text-soft)", background: "var(--parchment-deep)", border: "1px solid var(--app-border)", borderRadius: 999, padding: ".15rem .6rem", whiteSpace: "nowrap" }} title="Active organization">
-              {org.legal_name}
-            </span>
+          {accessibleOrgs.length > 1 ? (
+            <OrgSwitcher
+              orgs={accessibleOrgs.map((o) => ({ id: o.id, legal_name: o.legal_name }))}
+              activeOrgId={orgId}
+              action={setActiveOrgAction}
+            />
+          ) : (
+            org?.legal_name && (
+              <span style={{ fontSize: ".78rem", color: "var(--app-text-soft)", background: "var(--parchment-deep)", border: "1px solid var(--app-border)", borderRadius: 999, padding: ".15rem .6rem", whiteSpace: "nowrap" }} title="Active organization">
+                {org.legal_name}
+              </span>
+            )
           )}
           <nav style={{ display: "flex", gap: ".25rem", flex: 1 }}>
             {nav.map((n) => (

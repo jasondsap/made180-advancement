@@ -10,8 +10,8 @@ import {
   createUserFromCognito,
   listMembershipsForUser,
 } from "@/repositories/users";
-import { getOrgBySlug } from "@/repositories/orgs";
-import type { MembershipRole } from "@/types/db";
+import { listAllOrgs, listOrgsByIds } from "@/repositories/orgs";
+import type { MembershipRole, Org } from "@/types/db";
 
 export type Role = "super_admin" | MembershipRole;
 
@@ -22,9 +22,6 @@ export interface AppUser {
   isSuperAdmin: boolean;
   memberships: { orgId: string; role: MembershipRole }[];
 }
-
-/** The default org a super_admin lands on when they have no membership. */
-const DEFAULT_ORG_SLUG = "nvre";
 
 /**
  * Resolve the authenticated user from the NextAuth session. The signIn callback
@@ -74,10 +71,18 @@ export async function resolveActiveOrgId(user: AppUser): Promise<string | null> 
   if (cookieOrg && canAccessOrg(user, cookieOrg)) return cookieOrg;
   if (user.memberships[0]) return user.memberships[0].orgId;
   if (user.isSuperAdmin) {
-    const org = await getOrgBySlug(DEFAULT_ORG_SLUG);
-    return org?.id ?? null;
+    // No selected org and no membership → land on the first org (alphabetical).
+    // The header org switcher lets them change it; null only if no orgs exist.
+    const [first] = await listAllOrgs();
+    return first?.id ?? null;
   }
   return null;
+}
+
+/** Orgs this user may switch between: every org for a super_admin, else their memberships. */
+export async function listAccessibleOrgs(user: AppUser): Promise<Org[]> {
+  if (user.isSuperAdmin) return listAllOrgs();
+  return listOrgsByIds(user.memberships.map((m) => m.orgId));
 }
 
 export interface AuthContext {
@@ -98,4 +103,11 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
 export function canManage(role: Role): boolean {
   return role === "super_admin" || role === "org_admin";
+}
+
+/** Gate for the platform (cross-org) console. Throws unless the caller is super_admin. */
+export async function requireSuperAdmin(): Promise<AppUser> {
+  const user = await getAppUser();
+  if (!user || !user.isSuperAdmin) throw new Error("forbidden: super_admin required");
+  return user;
 }
