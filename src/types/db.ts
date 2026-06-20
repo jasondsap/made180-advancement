@@ -55,6 +55,8 @@ export interface Constituent {
   phone: string | null;
   address_json: AddressJson | null;
   do_not_contact: boolean;
+  email_opt_out: boolean;
+  sms_opt_in: boolean;
   source: string | null;
   created_at: Date;
   updated_at: Date;
