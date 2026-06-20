@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { getOrgBySlug } from "@/repositories/orgs";
 import { getPublishedFundraiser, getFundraiser } from "@/repositories/fundraisers";
 import { getFundById, listFunds } from "@/repositories/funds";
+import { listPublicTicketTypes } from "@/repositories/ticketTypes";
 import { DonationForm } from "../DonationForm";
+import { EventRegistration } from "./EventRegistration";
 
 /**
  * Public fundraiser page — a themed wrapper around the shared DonationForm. The
@@ -21,9 +23,15 @@ export default async function FundraiserPage({
   if (!fr) notFound();
 
   const donationsEnabled = Boolean(org.stripe_account_id) && fr.payments_enabled;
-  const fund = fr.fund_id ? await getFundById(org.id, fr.fund_id) : undefined;
+  const isEvent = fr.type === "event";
+  const fund = !isEvent && fr.fund_id ? await getFundById(org.id, fr.fund_id) : undefined;
   // Fallback fund list only matters if the fundraiser has no designated fund.
-  const funds = fund ? [{ code: fund.code, name: fund.name }] : (await listFunds(org.id, { activeOnly: true })).map((f) => ({ code: f.code, name: f.name }));
+  const funds = isEvent
+    ? []
+    : fund
+      ? [{ code: fund.code, name: fund.name }]
+      : (await listFunds(org.id, { activeOnly: true })).map((f) => ({ code: f.code, name: f.name }));
+  const ticketTypes = isEvent ? await listPublicTicketTypes(fr.id) : [];
 
   const theme = fr.theme_json ?? {};
   const accent = theme.accent || org.primary_color || undefined;
@@ -59,14 +67,29 @@ export default async function FundraiserPage({
         </div>
       )}
 
-      <DonationForm
-        orgSlug={org.slug}
-        funds={funds}
-        donationsEnabled={donationsEnabled}
-        fundraiserSlug={fr.slug}
-        appealId={null}
-        appealName={null}
-      />
+      {isEvent ? (
+        <EventRegistration
+          orgSlug={org.slug}
+          fundraiserSlug={fr.slug}
+          enabled={donationsEnabled}
+          tickets={ticketTypes.map((t) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            priceCents: t.price_cents,
+            remaining: t.capacity != null ? Math.max(0, t.capacity - t.sold) : null,
+          }))}
+        />
+      ) : (
+        <DonationForm
+          orgSlug={org.slug}
+          funds={funds}
+          donationsEnabled={donationsEnabled}
+          fundraiserSlug={fr.slug}
+          appealId={null}
+          appealName={null}
+        />
+      )}
 
       <p style={{ color: "#999", fontSize: ".8rem", marginTop: "2rem", textAlign: "center" }}>
         Secure payment processed by Stripe. We never store your card details.

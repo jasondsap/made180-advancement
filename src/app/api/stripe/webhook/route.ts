@@ -30,6 +30,9 @@ import {
 import { upsertConstituentByEmail } from "@/repositories/constituents";
 import { insertGift, markRefundedByPaymentIntent } from "@/repositories/gifts";
 import { upsertRecurringPlan, setRecurringPlanStatus } from "@/repositories/recurringPlans";
+import { getFundraiser } from "@/repositories/fundraisers";
+import { getTicketType } from "@/repositories/ticketTypes";
+import { insertRegistrant } from "@/repositories/registrants";
 import { issueReceipt } from "@/domain/receipts";
 import type { AddressJson, TributeType } from "@/types/db";
 
@@ -76,7 +79,8 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         // One-time only here; subscriptions are logged via invoice.paid (step 7).
         if (session.mode === "payment" && session.payment_status === "paid") {
-          await handleOneTimeSession(stripe, session);
+          if (session.metadata?.kind === "event") await handleEventSession(stripe, session);
+          else await handleOneTimeSession(stripe, session);
         }
         break;
       }
@@ -272,6 +276,72 @@ async function issueReceiptBestEffort(orgId: string, giftId: string) {
     );
   } catch (err) {
     console.error(`[webhook] receipt issuance failed for gift ${giftId} (gift saved):`, err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Events (ticket purchases)
+// ---------------------------------------------------------------------------
+
+async function handleEventSession(_stripe: Stripe, session: Stripe.Checkout.Session) {
+  const m = session.metadata ?? {};
+  const orgId = m.org_id;
+  const fundraiserId = m.fundraiser_id;
+  if (!orgId || !fundraiserId) {
+    console.warn("[webhook] event session missing org/fundraiser metadata — skipping");
+    return;
+  }
+  const email = cleanEmail(m.attendee_email) || cleanEmail(session.customer_details?.email);
+  if (!email) throw new Error("event session has no attendee email");
+  const paymentIntentId = idOf(session.payment_intent);
+
+  const { constituent } = await upsertConstituentByEmail(orgId, {
+    email,
+    firstName: splitName(m.attendee_name).first,
+    lastName: splitName(m.attendee_name).last,
+    source: "event",
+  });
+
+  const fr = await getFundraiser(orgId, fundraiserId);
+
+  // Record the purchase as a gift attributed to the fundraiser. No auto-receipt:
+  // tickets carry fair-market value. Idempotent via the payment-intent key.
+  await insertGift(orgId, {
+    constituentId: constituent.id,
+    fundId: fr?.fund_id ?? null,
+    campaignId: fr?.campaign_id ?? null,
+    fundraiserId,
+    giftType: "one_time",
+    amountCents: session.amount_total ?? 0,
+    status: "succeeded",
+    receivedAt: new Date(),
+    stripePaymentIntentId: paymentIntentId,
+    stripeCustomerId: idOf(session.customer),
+    notes: "Event ticket purchase",
+  });
+
+  // One registrant line per ticket type (idempotent per session + ticket type).
+  let tickets: Record<string, number> = {};
+  try {
+    tickets = JSON.parse(m.tickets ?? "{}") as Record<string, number>;
+  } catch {
+    tickets = {};
+  }
+  for (const [ticketTypeId, qtyRaw] of Object.entries(tickets)) {
+    const quantity = Number(qtyRaw) || 0;
+    if (quantity <= 0) continue;
+    const t = await getTicketType(orgId, ticketTypeId);
+    await insertRegistrant(orgId, {
+      fundraiserId,
+      ticketTypeId,
+      constituentId: constituent.id,
+      name: m.attendee_name || null,
+      email,
+      quantity,
+      amountCents: (t?.price_cents ?? 0) * quantity,
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId: paymentIntentId,
+    });
   }
 }
 

@@ -12,6 +12,7 @@ import {
   duplicateFundraiser,
   slugExists,
 } from "@/repositories/fundraisers";
+import { createTicketType, updateTicketType, deleteTicketType } from "@/repositories/ticketTypes";
 import type { FundraiserType, FundraiserFeature, FundraiserTheme } from "@/types/db";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -111,4 +112,43 @@ export async function duplicateFundraiserAction(fd: FormData) {
   const copy = await duplicateFundraiser(ctx.orgId, str(fd, "id"));
   revalidatePath("/app/fundraisers");
   redirect(copy ? `/app/fundraisers/${copy.id}/edit` : "/app/fundraisers");
+}
+
+// ---------- Ticket types (event fundraisers) ----------
+
+export async function addTicketTypeAction(fd: FormData) {
+  const ctx = await requireManager();
+  const fundraiserId = str(fd, "fundraiserId");
+  if (str(fd, "name")) {
+    await createTicketType(ctx.orgId, fundraiserId, {
+      name: str(fd, "name"),
+      description: str(fd, "description") || null,
+      priceCents: centsOrNull(str(fd, "price")) ?? 0,
+      capacity: str(fd, "capacity") ? parseInt(str(fd, "capacity"), 10) : null,
+    });
+  }
+  revalidatePath(`/app/fundraisers/${fundraiserId}/edit`);
+  redirect(`/app/fundraisers/${fundraiserId}/edit`);
+}
+
+export async function updateTicketTypeAction(fd: FormData) {
+  const ctx = await requireManager();
+  const fundraiserId = str(fd, "fundraiserId");
+  await updateTicketType(ctx.orgId, str(fd, "id"), {
+    name: str(fd, "name"),
+    description: str(fd, "description") || null,
+    priceCents: centsOrNull(str(fd, "price")) ?? 0,
+    capacity: str(fd, "capacity") ? parseInt(str(fd, "capacity"), 10) : null,
+    active: fd.get("active") === "on",
+  });
+  revalidatePath(`/app/fundraisers/${fundraiserId}/edit`);
+  redirect(`/app/fundraisers/${fundraiserId}/edit`);
+}
+
+export async function deleteTicketTypeAction(fd: FormData) {
+  const ctx = await requireManager();
+  const fundraiserId = str(fd, "fundraiserId");
+  await deleteTicketType(ctx.orgId, str(fd, "id"));
+  revalidatePath(`/app/fundraisers/${fundraiserId}/edit`);
+  redirect(`/app/fundraisers/${fundraiserId}/edit`);
 }
