@@ -81,6 +81,12 @@ export async function advanceStatusByProviderId(
   `;
 }
 
+/** Webhook helper: locate a recipient by its provider id (globally unique). */
+export async function getByProviderId(providerMessageId: string): Promise<EngageRecipient | undefined> {
+  const rows = (await sql`SELECT * FROM engage_recipients WHERE provider_message_id = ${providerMessageId} LIMIT 1`) as unknown as EngageRecipient[];
+  return rows[0];
+}
+
 export async function statsForMessage(orgId: string, messageId: string): Promise<MessageStats> {
   assertOrgId(orgId);
   const rows = (await sql`
