@@ -18,8 +18,9 @@ import { z } from "zod";
 import { getStripe } from "@/lib/stripe";
 import { requireEnv } from "@/lib/env";
 import { getOrgBySlug } from "@/repositories/orgs";
-import { getFundByCode } from "@/repositories/funds";
+import { getFundByCode, getFundById } from "@/repositories/funds";
 import { getAppealById } from "@/repositories/appeals";
+import { getPublishedFundraiser } from "@/repositories/fundraisers";
 import { grossUpForFees } from "@/domain/fees";
 
 export const runtime = "nodejs";
@@ -35,7 +36,8 @@ const AddressSchema = z.object({
 
 const BodySchema = z.object({
   orgSlug: z.string().trim().min(1),
-  fundCode: z.string().trim().min(1),
+  fundCode: z.string().trim().min(1).optional(),
+  fundraiserSlug: z.string().trim().min(1).optional(),
   frequency: z.enum(["one_time", "monthly"]),
   amountCents: z.number().int().min(100, "Minimum gift is $1.00").max(100_000_00),
   donor: z.object({
@@ -72,7 +74,30 @@ export async function POST(req: NextRequest) {
       { status: 409 },
     );
   }
-  const fund = await getFundByCode(org.id, body.fundCode);
+  // A fundraiser (if given) pins the designation + attribution server-side, so a
+  // client can't redirect a gift to a different fund. Resolve it from the DB.
+  let fundraiserId = "";
+  let fundraiserCampaignId = "";
+  let fundraiserFundId = "";
+  if (body.fundraiserSlug) {
+    const fr = await getPublishedFundraiser(org.slug, body.fundraiserSlug);
+    if (!fr) {
+      return NextResponse.json({ error: "This fundraiser is not available." }, { status: 404 });
+    }
+    if (!fr.payments_enabled) {
+      return NextResponse.json({ error: "This fundraiser is not accepting gifts right now." }, { status: 409 });
+    }
+    fundraiserId = fr.id;
+    fundraiserCampaignId = fr.campaign_id ?? "";
+    fundraiserFundId = fr.fund_id ?? "";
+  }
+
+  // Designation: the fundraiser's fund wins; otherwise the form's fund code.
+  const fund = fundraiserFundId
+    ? await getFundById(org.id, fundraiserFundId)
+    : body.fundCode
+      ? await getFundByCode(org.id, body.fundCode)
+      : undefined;
   if (!fund || !fund.active) {
     return NextResponse.json({ error: "Invalid fund designation" }, { status: 400 });
   }
@@ -88,6 +113,8 @@ export async function POST(req: NextRequest) {
       appealCampaignId = appeal.campaign_id ?? "";
     }
   }
+  // Fundraiser campaign attribution takes precedence over an appeal's campaign.
+  const campaignId = fundraiserCampaignId || appealCampaignId;
 
   const intendedCents = body.amountCents;
   const chargeCents = body.coverFees ? grossUpForFees(intendedCents) : intendedCents;
@@ -114,7 +141,8 @@ export async function POST(req: NextRequest) {
     employer: body.employer ?? "",
     donor_address: body.donor.address ? JSON.stringify(body.donor.address) : "",
     appeal_id: appealId,
-    campaign_id: appealCampaignId,
+    campaign_id: campaignId,
+    fundraiser_id: fundraiserId,
   };
 
   const baseUrl = requireEnv("APP_BASE_URL").replace(/\/$/, "");
