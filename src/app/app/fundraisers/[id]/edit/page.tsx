@@ -5,6 +5,7 @@ import { getFundraiser } from "@/repositories/fundraisers";
 import { getOrgById } from "@/repositories/orgs";
 import { listFunds } from "@/repositories/funds";
 import { listCampaigns } from "@/repositories/campaigns";
+import { listTicketTypes } from "@/repositories/ticketTypes";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import {
   updateFundraiserAction,
@@ -13,6 +14,9 @@ import {
   pinFundraiserAction,
   duplicateFundraiserAction,
   archiveFundraiserAction,
+  addTicketTypeAction,
+  updateTicketTypeAction,
+  deleteTicketTypeAction,
 } from "../../actions";
 import type { FundraiserStatus } from "@/types/db";
 
@@ -41,6 +45,7 @@ export default async function EditFundraiserPage({
   ]);
   if (!fr || !org) notFound();
 
+  const tickets = fr.type === "event" ? await listTicketTypes(ctx.orgId, fr.id) : [];
   const theme = fr.theme_json ?? {};
   const amounts = (theme.suggestedAmounts ?? []).map((c) => (c / 100).toString()).join(", ");
   const publicUrl = `/give/${org.slug}/${fr.slug}`;
@@ -98,6 +103,48 @@ export default async function EditFundraiserPage({
         </div>
       </section>
 
+      {/* Tickets (events only) */}
+      {fr.type === "event" && (
+        <section style={section}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem" }}>
+            <h2 style={{ fontSize: "1.05rem", margin: 0 }}>Tickets</h2>
+            <Link href={`/app/fundraisers/${fr.id}/registrants`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>View registrants →</Link>
+          </div>
+          {tickets.map((t) => (
+            <form key={t.id} action={updateTicketTypeAction} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr .8fr auto auto", gap: ".5rem", alignItems: "center", marginBottom: ".5rem" }}>
+              <input type="hidden" name="id" value={t.id} />
+              <input type="hidden" name="fundraiserId" value={fr.id} />
+              <input name="name" defaultValue={t.name} style={inp} />
+              <input name="price" type="number" min="0" step="1" defaultValue={t.price_cents / 100} style={inp} />
+              <input name="capacity" type="number" min="0" defaultValue={t.capacity ?? ""} placeholder="∞" style={inp} title="Capacity (blank = unlimited)" />
+              <label style={{ fontSize: ".8rem", display: "flex", gap: ".25rem", alignItems: "center" }}><input type="checkbox" name="active" defaultChecked={t.active} /> active</label>
+              <span style={{ display: "inline-flex", gap: ".4rem", alignItems: "center" }}>
+                <span style={{ fontSize: ".78rem", color: "#888" }}>{t.sold} sold</span>
+                <button style={btnGhost}>Save</button>
+              </span>
+            </form>
+          ))}
+          {tickets.length > 0 && (
+            <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", marginBottom: ".75rem" }}>
+              {tickets.map((t) => (
+                <form key={t.id} action={deleteTicketTypeAction}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <input type="hidden" name="fundraiserId" value={fr.id} />
+                  <button style={btnDangerSm} title={`Remove ${t.name}`}>✕ {t.name}</button>
+                </form>
+              ))}
+            </div>
+          )}
+          <form action={addTicketTypeAction} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr .8fr auto", gap: ".5rem", alignItems: "end", marginTop: ".5rem", borderTop: "1px solid var(--app-border)", paddingTop: ".75rem" }}>
+            <input type="hidden" name="fundraiserId" value={fr.id} />
+            <Field label="Ticket name"><input name="name" placeholder="General admission" style={inp} required /></Field>
+            <Field label="Price ($)"><input name="price" type="number" min="0" step="1" defaultValue="0" style={inp} /></Field>
+            <Field label="Capacity"><input name="capacity" type="number" min="0" placeholder="∞" style={inp} /></Field>
+            <button style={btnPrimary}>Add ticket</button>
+          </form>
+        </section>
+      )}
+
       {/* Edit form */}
       <form action={updateFundraiserAction} style={{ ...section, display: "grid", gap: ".9rem" }}>
         <input type="hidden" name="id" value={fr.id} />
@@ -148,3 +195,4 @@ const inp: React.CSSProperties = { padding: ".55rem .7rem", border: "1px solid #
 const btnPrimary: React.CSSProperties = { padding: ".5rem 1.1rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontSize: ".9rem", fontWeight: 600, cursor: "pointer" };
 const btnGhost: React.CSSProperties = { padding: ".5rem 1rem", borderRadius: 8, background: "transparent", color: "var(--brand)", border: "1px solid var(--app-border)", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };
 const btnDanger: React.CSSProperties = { padding: ".5rem 1rem", borderRadius: 8, background: "transparent", color: "#9b1c1c", border: "1px solid #e6c3c0", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };
+const btnDangerSm: React.CSSProperties = { padding: ".3rem .6rem", borderRadius: 7, background: "transparent", color: "#9b1c1c", border: "1px solid #e6c3c0", fontSize: ".78rem", cursor: "pointer" };

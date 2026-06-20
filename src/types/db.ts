@@ -75,6 +75,35 @@ export interface Fund {
   created_at: Date;
 }
 
+export interface TicketType {
+  id: string;
+  org_id: string;
+  fundraiser_id: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  capacity: number | null;
+  active: boolean;
+  sort: number;
+  created_at: Date;
+}
+
+export interface Registrant {
+  id: string;
+  org_id: string;
+  fundraiser_id: string;
+  ticket_type_id: string | null;
+  constituent_id: string | null;
+  name: string | null;
+  email: string | null;
+  quantity: number;
+  amount_cents: number;
+  status: string;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  created_at: Date;
+}
+
 export interface FundraiserTheme {
   accent?: string | null;
   coverImageUrl?: string | null;
