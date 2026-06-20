@@ -94,6 +94,8 @@ export async function updateOrgAction(fd: FormData) {
     receiptFromEmail: str(fd, "receiptFromEmail") || null,
     receiptSignatureName: str(fd, "receiptSignatureName") || null,
     address: address.line1 || address.city ? address : null,
+    logoUrl: str(fd, "logoUrl") || null,
+    primaryColor: str(fd, "primaryColor") || null,
   });
   revalidatePath("/app/settings");
   redirect("/app/settings?msg=saved");

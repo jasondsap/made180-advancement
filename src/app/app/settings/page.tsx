@@ -39,6 +39,17 @@ export default async function SettingsPage({
         </fieldset>
 
         <fieldset style={fs}>
+          <legend style={lg}>Branding (public giving page &amp; receipts)</legend>
+          <Field label="Logo URL (absolute https:// link, shown on your giving page)"><input name="logoUrl" type="url" defaultValue={org.logo_url ?? ""} style={inp} placeholder="https://example.org/logo.png" /></Field>
+          <Field label="Primary color (hex, e.g. #1c6e3c — defaults to Almonry oxblood)">
+            <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+              <input name="primaryColor" defaultValue={org.primary_color ?? ""} style={{ ...inp, flex: 1 }} placeholder="#1c6e3c" />
+              {org.primary_color && <span aria-hidden style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #ccc", background: org.primary_color, display: "inline-block" }} />}
+            </div>
+          </Field>
+        </fieldset>
+
+        <fieldset style={fs}>
           <legend style={lg}>Mailing address (receipt letterhead)</legend>
           <Field label="Street"><input name="line1" defaultValue={a.line1 ?? ""} style={inp} /></Field>
           <Field label="Line 2"><input name="line2" defaultValue={a.line2 ?? ""} style={inp} /></Field>

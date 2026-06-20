@@ -3,7 +3,7 @@ import type { AddressJson } from "@/types/db";
 
 /** Year-end consolidated giving statement (one PDF summarizing a donor's year). */
 export interface YearEndData {
-  org: { legal_name: string; ein: string | null; address_json: AddressJson | null; receipt_signature_name: string | null };
+  org: { legal_name: string; ein: string | null; address_json: AddressJson | null; receipt_signature_name: string | null; primary_color?: string | null };
   donor: { name: string; email: string | null; address: AddressJson | null };
   year: number;
   lines: { date: Date; fund: string | null; amountCents: number; deductibleCents: number }[];
@@ -14,13 +14,21 @@ export interface YearEndData {
 const money = (c: number) => (c / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
+/** Parse '#rrggbb' → [r,g,b]; null/invalid → near-black default. */
+function brandRgb(hex: string | null | undefined): [number, number, number] {
+  const m = (hex ?? "").trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(m)) return [20, 20, 20];
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+}
+
 export function buildYearEndStatementPdf(data: YearEndData): Buffer {
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const left = 56, right = 556;
   let y = 64;
   const orgAddr = data.org.address_json ?? {};
+  const [br, bg, bb] = brandRgb(data.org.primary_color);
 
-  doc.setFont("helvetica", "bold").setFontSize(18).text(data.org.legal_name, left, y);
+  doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(br, bg, bb).text(data.org.legal_name, left, y);
   y += 18;
   doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(90);
   [orgAddr.line1, [orgAddr.city, orgAddr.state, orgAddr.zip].filter(Boolean).join(", "), data.org.ein ? `EIN: ${data.org.ein}` : null]
@@ -28,7 +36,7 @@ export function buildYearEndStatementPdf(data: YearEndData): Buffer {
     .forEach((l) => { doc.text(String(l), left, y); y += 13; });
 
   y += 18;
-  doc.setTextColor(20).setFont("helvetica", "bold").setFontSize(14).text(`${data.year} Annual Giving Statement`, left, y);
+  doc.setTextColor(br, bg, bb).setFont("helvetica", "bold").setFontSize(14).text(`${data.year} Annual Giving Statement`, left, y);
   y += 8;
   doc.setDrawColor(210).line(left, y, right, y);
 

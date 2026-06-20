@@ -26,6 +26,13 @@ export default async function GivePage({
   // Optional appeal attribution from a tracking link.
   const appeal = appealParam ? await getAppealById(org.id, appealParam) : undefined;
 
+  // Per-tenant accent: override the --brand CSS var so the form's existing
+  // var(--brand) usages (button, active chips, badge) pick up the org color.
+  // Null → inherits the Almonry default (oxblood).
+  const brandStyle = org.primary_color
+    ? ({ ["--brand" as string]: org.primary_color } as React.CSSProperties)
+    : undefined;
+
   return (
     <main
       style={{
@@ -34,9 +41,18 @@ export default async function GivePage({
         margin: "0 auto",
         padding: "2rem 1.25rem 4rem",
         color: "#1a1a1a",
+        ...brandStyle,
       }}
     >
       <header style={{ marginBottom: "1.5rem" }}>
+        {org.logo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={org.logo_url}
+            alt={`${org.legal_name} logo`}
+            style={{ maxHeight: 64, maxWidth: 220, marginBottom: ".75rem", objectFit: "contain" }}
+          />
+        )}
         <h1 style={{ fontSize: "1.6rem", margin: "0 0 .25rem" }}>
           Donate to {org.legal_name}
         </h1>

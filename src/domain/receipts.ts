@@ -60,6 +60,7 @@ export async function issueReceipt(orgId: string, giftId: string): Promise<Issue
       ein: org.ein,
       receipt_signature_name: org.receipt_signature_name,
       address_json: org.address_json,
+      primary_color: org.primary_color,
     },
     donor: { name: donorName, email: constituent.email, address: constituent.address_json },
     gift: {

@@ -82,6 +82,8 @@ export async function updateOrgSettings(
     receiptFromEmail: string | null;
     receiptSignatureName: string | null;
     address: AddressJson | null;
+    logoUrl?: string | null;
+    primaryColor?: string | null;
   },
 ): Promise<void> {
   assertOrgId(orgId);
@@ -91,7 +93,16 @@ export async function updateOrgSettings(
       ein = ${s.ein},
       receipt_from_email = ${s.receiptFromEmail},
       receipt_signature_name = ${s.receiptSignatureName},
-      address_json = ${s.address ? JSON.stringify(s.address) : null}::jsonb
+      address_json = ${s.address ? JSON.stringify(s.address) : null}::jsonb,
+      logo_url = ${s.logoUrl ?? null},
+      primary_color = ${normalizeHex(s.primaryColor)}
     WHERE id = ${orgId}
   `;
+}
+
+/** Accept '#rrggbb' / 'rrggbb' (case-insensitive); store as '#rrggbb' or null. */
+export function normalizeHex(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const m = v.trim().replace(/^#/, "");
+  return /^[0-9a-fA-F]{6}$/.test(m) ? `#${m.toLowerCase()}` : null;
 }
