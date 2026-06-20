@@ -18,6 +18,11 @@ function client(): Resend {
   return cached;
 }
 
+/** Raw Resend client for features beyond transactional send (e.g. domains API). */
+export function getResendClient(): Resend {
+  return client();
+}
+
 export interface ReceiptEmail {
   fromName: string;
   fromEmail: string | null;
@@ -40,5 +45,37 @@ export async function sendReceiptEmail(msg: ReceiptEmail): Promise<{ id: string 
   if (result.error) {
     throw new Error(`Resend send failed: ${result.error.message}`);
   }
+  return { id: result.data?.id ?? null };
+}
+
+export interface EngageEmail {
+  fromName: string;
+  fromEmail: string | null;
+  to: string;
+  replyTo?: string | null;
+  subject: string;
+  html: string;
+  unsubscribeUrl: string;
+}
+
+/**
+ * Send one Engage marketing email. Distinct from receipts: no attachment, and
+ * a List-Unsubscribe header (one-click unsubscribe) alongside the in-body link.
+ * Returns the Resend message id for per-recipient delivery tracking.
+ */
+export async function sendEngageEmail(msg: EngageEmail): Promise<{ id: string | null }> {
+  const from = msg.fromEmail || env().RESEND_FROM_FALLBACK || "onboarding@resend.dev";
+  const result = await client().emails.send({
+    from: `${msg.fromName} <${from}>`,
+    to: msg.to,
+    replyTo: msg.replyTo ?? undefined,
+    subject: msg.subject,
+    html: msg.html,
+    headers: {
+      "List-Unsubscribe": `<${msg.unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+  if (result.error) throw new Error(`Resend send failed: ${result.error.message}`);
   return { id: result.data?.id ?? null };
 }

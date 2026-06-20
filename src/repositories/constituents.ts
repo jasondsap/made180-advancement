@@ -183,6 +183,12 @@ export async function mergeConstituents(
   ]);
 }
 
+/** Set the email marketing opt-out flag (used by the public unsubscribe route). */
+export async function setEmailOptOut(orgId: string, id: string, optOut: boolean): Promise<void> {
+  assertOrgId(orgId);
+  await sql`UPDATE constituents SET email_opt_out = ${optOut} WHERE org_id = ${orgId} AND id = ${id}`;
+}
+
 export async function listConstituents(
   orgId: string,
   opts: { limit?: number; offset?: number; search?: string } = {},
