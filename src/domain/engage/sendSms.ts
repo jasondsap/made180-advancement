@@ -35,7 +35,7 @@ export async function sendSmsMessage(
   await bulkInsertRecipients(orgId, messageId, constituents.map((c) => ({ constituentId: c.id, toPhone: c.phone })));
 
   const base = requireEnv("APP_BASE_URL").replace(/\/$/, "");
-  const statusCallback = `${base}/api/engage/webhook/twilio`;
+  const statusCallback = `${base}/api/tidings/webhook/twilio`;
   const byId = new Map(constituents.map((c) => [c.id, c]));
   const queued = await listQueued(orgId, messageId);
 

@@ -67,18 +67,18 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
 - `src/domain/` — fees, receiptPdf, receipts, yearEndPdf, quickbooksCsv,
   assistant, and **engage/** (render, send, sendSms, mailingPdf).
 - `src/components/` — `ArchMark` (logo), `OrgSwitcher`, `SignOutButton`,
-  `ui/` (DataTable, EmptyState, Badge, SubTabs), `engage/` (EngageTabs, SettingsNav).
+  `ui/` (DataTable, EmptyState, Badge, SubTabs), `tidings/` (TidingsTabs, SettingsNav).
 - `src/app/give/[orgSlug]/` — default donation page; `[fundraiserSlug]/` themed
   fundraiser/event page; `[fundraiserSlug]/p/[memberSlug]/` peer-to-peer page.
 - `src/app/u/[token]/` — public unsubscribe.
 - `src/app/api/` — checkout, events/checkout, stripe/webhook, auth/[...nextauth],
   auth/cognito-logout, assistant/{query,thank-you}, export/quickbooks,
   year-end/[constituentId], fundraisers/export, p2p/join, auction/bid,
-  engage/webhook/{resend,twilio,twilio/inbound}, engage/mailings/[id]/pdf.
+  tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf.
 - `src/app/app/` — admin (force-dynamic): dashboard, gifts, constituents, pledges,
   reports, funds, campaigns, **fundraisers** (+ [id]/edit, /registrants, /members,
-  /new wizard), **engage** (email/texts/mailings/settings), assistant, settings,
-  **admin/orgs** (super_admin console).
+  /new wizard), **tidings** (email/texts/mailings/settings — donor messaging),
+  assistant, settings, **admin/orgs** (super_admin console).
 - `middleware.ts` — NextAuth `withAuth` gate on `/app/*`.
 
 ## Auth, roles & org switching
@@ -103,7 +103,13 @@ when a user can access >1 org. Seeded super_admin: jason@made180.com.
   shared DonationForm); receipt + year-end PDFs theme the header. A fundraiser's
   `theme_json.accent` overrides further on its own page.
 
-## Engage (donor messaging) — feature-flagged channels
+## Tidings (donor messaging) — feature-flagged channels
+> UI, routes (`/app/tidings`, `/api/tidings/*`), and components are branded
+> **Tidings**. The internal data layer deliberately keeps the `engage` namespace:
+> `repositories/engage/`, `domain/engage/`, `types/engage.ts`, `engageTokens.ts`,
+> the `engage_*` tables, and the `ENGAGE_*` flags. (Renaming those = a DB
+> migration + env churn for no user benefit.)
+
 One message model (`engage_messages.channel ∈ email|sms|mail`) + per-recipient
 fan-out (`engage_recipients`) for tracking/idempotency. Audience = consent-filtered
 constituents (`audience` repo: all / by fund / manual).
@@ -156,10 +162,10 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 ## Outstanding config (not code)
 - Cognito callback `/api/auth/callback/cognito`, sign-out `/`, users for admins.
 - `RESEND_API_KEY` + verified sender; `RESEND_WEBHOOK_SECRET` + webhook →
-  `/api/engage/webhook/resend`.
+  `/api/tidings/webhook/resend`.
 - Twilio (`TWILIO_ACCOUNT_SID/AUTH_TOKEN/MESSAGING_SERVICE_SID` or `FROM_NUMBER`)
-  + status webhook `/api/engage/webhook/twilio` + inbound
-  `/api/engage/webhook/twilio/inbound`; set `ENGAGE_SMS_ENABLED`.
+  + status webhook `/api/tidings/webhook/twilio` + inbound
+  `/api/tidings/webhook/twilio/inbound`; set `ENGAGE_SMS_ENABLED`.
 - `ANTHROPIC_API_KEY` (assistant). `APP_BASE_URL` (checkout/return + webhook URLs).
 - Feature flags as desired: `ENGAGE_MAILINGS_ENABLED`, `FUNDRAISER_EVENTS_ENABLED`,
   `FUNDRAISER_P2P_ENABLED`, `FUNDRAISER_AUCTION_ENABLED`.
@@ -168,8 +174,9 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 
 ## Status
 Shipped: Almonry rebrand; super_admin org console + Stripe Connect onboarding +
-membership management + org switcher; per-tenant branding; Engage (email, SMS,
-mailings); Fundraisers (donation forms/pages, events, peer-to-peer, auction).
+membership management + org switcher; per-tenant branding; Tidings (donor
+messaging: email, SMS, mailings); Fundraisers (donation forms/pages, events,
+peer-to-peer, auction).
 Phase-1 CRM (dashboard/gifts/constituents+merge/funds/campaigns/pledges/reports/
 QuickBooks export/Dori assistant/receipts) intact. 10 migrations applied.
 
