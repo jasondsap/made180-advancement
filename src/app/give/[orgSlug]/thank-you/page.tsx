@@ -54,7 +54,7 @@ export default async function ThankYouPage({
         {donorEmail ? <> A tax receipt is on its way to {donorEmail}.</> : <> A tax receipt will be emailed to you shortly.</>}
       </p>
       <p style={{ marginTop: "2rem" }}>
-        <Link href={`/give/${orgSlug}`} style={{ color: "#1c6e3c" }}>
+        <Link href={`/give/${orgSlug}`} style={{ color: "var(--brand)" }}>
           Make another gift
         </Link>
       </p>

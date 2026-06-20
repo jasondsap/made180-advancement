@@ -20,7 +20,7 @@ export default async function EditConstituentPage({
   if (!con) notFound();
   return (
     <div>
-      <Link href={`/app/constituents/${id}`} style={{ color: "#1c6e3c", textDecoration: "none", fontSize: ".9rem" }}>← Back</Link>
+      <Link href={`/app/constituents/${id}`} style={{ color: "var(--brand)", textDecoration: "none", fontSize: ".9rem" }}>← Back</Link>
       <h1 style={{ fontSize: "1.5rem", margin: ".5rem 0 1rem" }}>Edit constituent</h1>
       <ConstituentForm action={updateConstituentAction} defaults={con} submitLabel="Save changes" error={error} />
     </div>

@@ -51,7 +51,7 @@ export default async function PledgesPage({
             {pledges.length === 0 && <tr><td colSpan={5} style={{ padding: "1.5rem", textAlign: "center", color: "#999" }}>No pledges yet.</td></tr>}
             {pledges.map((p) => (
               <tr key={p.id} style={{ borderTop: "1px solid #f1f2f1" }}>
-                <td style={td}><Link href={`/app/constituents/${p.constituent_id}`} style={{ color: "#1c6e3c", textDecoration: "none" }}>{p.donor_name}</Link></td>
+                <td style={td}><Link href={`/app/constituents/${p.constituent_id}`} style={{ color: "var(--brand)", textDecoration: "none" }}>{p.donor_name}</Link></td>
                 <td style={{ ...td, textAlign: "right" }}>{usd(p.total_cents)}</td>
                 <td style={{ ...td, textAlign: "right" }}>{usd(p.balance_cents)}</td>
                 <td style={td}>{p.status}</td>
@@ -88,4 +88,4 @@ const th: React.CSSProperties = { padding: ".6rem .8rem", fontWeight: 600 };
 const td: React.CSSProperties = { padding: ".5rem .8rem" };
 const inp: React.CSSProperties = { padding: ".4rem .5rem", border: "1px solid #ccc", borderRadius: 6, fontSize: ".88rem" };
 const btn: React.CSSProperties = { padding: ".35rem .7rem", border: "1px solid #ccc", borderRadius: 6, background: "#fff", fontSize: ".82rem", cursor: "pointer" };
-const btnPrimary: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 8, background: "#1c6e3c", color: "#fff", border: "none", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };
+const btnPrimary: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };

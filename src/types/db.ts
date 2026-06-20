@@ -39,6 +39,8 @@ export interface Org {
   receipt_signature_name: string | null;
   stripe_account_id: string | null;
   address_json: AddressJson | null;
+  logo_url: string | null;
+  primary_color: string | null;
   created_at: Date;
 }
 

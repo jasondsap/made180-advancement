@@ -15,6 +15,7 @@ export interface ReceiptData {
     ein: string | null;
     receipt_signature_name: string | null;
     address_json: AddressJson | null;
+    primary_color?: string | null;
   };
   donor: {
     name: string;
@@ -34,6 +35,13 @@ export interface ReceiptData {
   receiptNumber: string;
 }
 
+/** Parse '#rrggbb' → [r,g,b]; null/invalid → a near-black default. */
+function brandRgb(hex: string | null | undefined): [number, number, number] {
+  const m = (hex ?? "").trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(m)) return [20, 20, 20];
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+}
+
 const money = (cents: number) =>
   (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 
@@ -47,9 +55,10 @@ export function buildReceiptPdf(data: ReceiptData): Buffer {
   let y = 64;
 
   const orgAddr = data.org.address_json ?? {};
+  const [br, bg, bb] = brandRgb(data.org.primary_color);
 
-  // Header: org name + address + EIN
-  doc.setFont("helvetica", "bold").setFontSize(18);
+  // Header: org name (in the org's brand color) + address + EIN
+  doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(br, bg, bb);
   doc.text(data.org.legal_name, left, y);
   y += 18;
   doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(90);
@@ -66,7 +75,7 @@ export function buildReceiptPdf(data: ReceiptData): Buffer {
 
   // Title + receipt number
   y += 20;
-  doc.setTextColor(20).setFont("helvetica", "bold").setFontSize(14);
+  doc.setTextColor(br, bg, bb).setFont("helvetica", "bold").setFontSize(14);
   doc.text("Official Donation Receipt", left, y);
   doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(90);
   doc.text(`Receipt No. ${data.receiptNumber}`, right, y, { align: "right" });

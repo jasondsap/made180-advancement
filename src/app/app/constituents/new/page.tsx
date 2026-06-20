@@ -13,7 +13,7 @@ export default async function NewConstituentPage({
   const { error } = await searchParams;
   return (
     <div>
-      <Link href="/app/constituents" style={{ color: "#1c6e3c", textDecoration: "none", fontSize: ".9rem" }}>← Constituents</Link>
+      <Link href="/app/constituents" style={{ color: "var(--brand)", textDecoration: "none", fontSize: ".9rem" }}>← Constituents</Link>
       <h1 style={{ fontSize: "1.5rem", margin: ".5rem 0 1rem" }}>Add constituent</h1>
       <ConstituentForm action={createConstituentAction} submitLabel="Create" error={error} />
     </div>

@@ -9,11 +9,11 @@ import { refundGift, resendReceipt } from "../actions";
 import { ThankYouButton } from "./ThankYouButton";
 
 const MSGS: Record<string, [string, string, string]> = {
-  created: ["#e8f5ec", "#1c6e3c", "Gift recorded."],
-  refunded: ["#e8f5ec", "#1c6e3c", "Gift refunded."],
+  created: ["#edf1ec", "var(--forest)", "Gift recorded."],
+  refunded: ["#edf1ec", "var(--forest)", "Gift refunded."],
   already_refunded: ["#fff4e5", "#7a4f00", "This gift was already refunded."],
   refund_error: ["#fdecec", "#9b1c1c", "Refund failed — check Stripe and try again."],
-  receipt_sent: ["#e8f5ec", "#1c6e3c", "Receipt sent."],
+  receipt_sent: ["#edf1ec", "var(--forest)", "Receipt sent."],
   receipt_error: ["#fdecec", "#9b1c1c", "Receipt could not be sent (check email config)."],
 };
 
@@ -44,7 +44,7 @@ export default async function GiftDetailPage({
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <Link href="/app/gifts" style={{ color: "#1c6e3c", textDecoration: "none", fontSize: ".9rem" }}>← Gifts</Link>
+      <Link href="/app/gifts" style={{ color: "var(--brand)", textDecoration: "none", fontSize: ".9rem" }}>← Gifts</Link>
 
       {banner && (
         <div style={{ background: banner[0], color: banner[1], padding: ".7rem .9rem", borderRadius: 8, margin: ".75rem 0", fontSize: ".9rem" }}>
@@ -58,7 +58,7 @@ export default async function GiftDetailPage({
       </div>
 
       <section style={card}>
-        <Row k="Donor" v={constituent ? <Link href={`/app/constituents/${constituent.id}`} style={{ color: "#1c6e3c" }}>{donor}</Link> : donor} />
+        <Row k="Donor" v={constituent ? <Link href={`/app/constituents/${constituent.id}`} style={{ color: "var(--brand)" }}>{donor}</Link> : donor} />
         <Row k="Email" v={constituent?.email ?? "—"} />
         <Row k="Fund" v={fund?.name ?? "—"} />
         <Row k="Received" v={fmtDate(gift.received_at)} />

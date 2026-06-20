@@ -2,7 +2,7 @@
   "name": "advancement-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "MADe180 Advancement Platform — multi-tenant nonprofit donor CRM + donation processing",
+  "description": "Almonry — multi-tenant nonprofit donor CRM, online giving, and stewardship",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

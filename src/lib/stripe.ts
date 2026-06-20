@@ -18,7 +18,7 @@ export function getStripe(): Stripe {
     cached = new Stripe(requireEnv("STRIPE_SECRET_KEY"), {
       apiVersion: STRIPE_API_VERSION,
       typescript: true,
-      appInfo: { name: "MADe180 Advancement Platform" },
+      appInfo: { name: "Almonry" },
     });
   }
   return cached;

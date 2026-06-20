@@ -23,7 +23,7 @@ export default async function SettingsPage({
   return (
     <div style={{ maxWidth: 640 }}>
       <h1 style={{ fontSize: "1.5rem" }}>Settings</h1>
-      {msg === "saved" && <div style={{ background: "#e8f5ec", color: "#1c6e3c", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Settings saved.</div>}
+      {msg === "saved" && <div style={{ background: "#edf1ec", color: "var(--forest)", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Settings saved.</div>}
 
       <form action={updateOrgAction} style={{ display: "grid", gap: "1rem" }}>
         <fieldset style={fs}>
@@ -36,6 +36,17 @@ export default async function SettingsPage({
           <legend style={lg}>Receipts</legend>
           <Field label="Receipt from-email (must be Resend-verified)"><input name="receiptFromEmail" type="email" defaultValue={org.receipt_from_email ?? ""} style={inp} /></Field>
           <Field label="Receipt signatory"><input name="receiptSignatureName" defaultValue={org.receipt_signature_name ?? ""} style={inp} placeholder="Jane Doe, Executive Director" /></Field>
+        </fieldset>
+
+        <fieldset style={fs}>
+          <legend style={lg}>Branding (public giving page &amp; receipts)</legend>
+          <Field label="Logo URL (absolute https:// link, shown on your giving page)"><input name="logoUrl" type="url" defaultValue={org.logo_url ?? ""} style={inp} placeholder="https://example.org/logo.png" /></Field>
+          <Field label="Primary color (hex, e.g. #1c6e3c — defaults to Almonry oxblood)">
+            <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+              <input name="primaryColor" defaultValue={org.primary_color ?? ""} style={{ ...inp, flex: 1 }} placeholder="#1c6e3c" />
+              {org.primary_color && <span aria-hidden style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #ccc", background: org.primary_color, display: "inline-block" }} />}
+            </div>
+          </Field>
         </fieldset>
 
         <fieldset style={fs}>
@@ -55,7 +66,7 @@ export default async function SettingsPage({
       <section style={{ ...fs, marginTop: "1rem" }}>
         <legend style={lg}>Manage</legend>
         <p style={{ fontSize: ".9rem", margin: ".25rem 0" }}>
-          <Link href="/app/funds" style={{ color: "#1c6e3c" }}>Funds</Link> · <Link href="/app/campaigns" style={{ color: "#1c6e3c" }}>Campaigns & appeals</Link>
+          <Link href="/app/funds" style={{ color: "var(--brand)" }}>Funds</Link> · <Link href="/app/campaigns" style={{ color: "var(--brand)" }}>Campaigns & appeals</Link>
         </p>
         <p style={{ fontSize: ".8rem", color: "#999", margin: 0 }}>
           User & role management is provisioned via Cognito + the memberships table. Connect onboarding lives under your org&apos;s Stripe settings.
@@ -71,4 +82,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inp: React.CSSProperties = { padding: ".5rem .6rem", border: "1px solid #ccc", borderRadius: 7, fontSize: ".95rem", width: "100%", boxSizing: "border-box" };
 const fs: React.CSSProperties = { border: "1px solid #e8eae8", borderRadius: 10, padding: "1rem", display: "grid", gap: ".75rem" };
 const lg: React.CSSProperties = { fontWeight: 600, fontSize: ".85rem", color: "#444", padding: "0 .4rem" };
-const btnPrimary: React.CSSProperties = { padding: ".6rem 1.1rem", borderRadius: 8, background: "#1c6e3c", color: "#fff", border: "none", fontSize: ".95rem", fontWeight: 600, cursor: "pointer" };
+const btnPrimary: React.CSSProperties = { padding: ".6rem 1.1rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontSize: ".95rem", fontWeight: 600, cursor: "pointer" };

@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, ctxArg: { params: Promise<{ constitu
   const donorName = [con.first_name, con.last_name].filter(Boolean).join(" ") || con.org_name || "Donor";
 
   const pdf = buildYearEndStatementPdf({
-    org: { legal_name: org.legal_name, ein: org.ein, address_json: org.address_json, receipt_signature_name: org.receipt_signature_name },
+    org: { legal_name: org.legal_name, ein: org.ein, address_json: org.address_json, receipt_signature_name: org.receipt_signature_name, primary_color: org.primary_color },
     donor: { name: donorName, email: con.email, address: con.address_json },
     year,
     lines,

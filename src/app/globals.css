@@ -1,0 +1,43 @@
+:root {
+  /* Almonry palette */
+  --parchment: #F2EBDC;
+  --parchment-deep: #E7DDC8;
+  --ink: #2B2620;
+  --ink-soft: #5A5246;
+  --oxblood: #6E2A2A;
+  --oxblood-bright: #8B3A36;
+  --brass: #A9854B;
+  --brass-light: #C8A86A;
+  --forest: #2F4032;
+  --stone: #D9CFB8;
+
+  /* semantic — the admin app reads these. Per-tenant donor pages may override. */
+  --brand: var(--oxblood);
+  --brand-hover: var(--oxblood-bright);
+  --accent: var(--brass);
+
+  /* admin surface — light & legible for a data-dense CRM, brand accents on top */
+  --app-bg: #f6f3ec;
+  --app-surface: #ffffff;
+  --app-border: #e6ded0;
+  --app-text: var(--ink);
+  --app-text-soft: var(--ink-soft);
+
+  --font-ui: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-body: var(--font-newsreader), Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--app-text);
+}
+
+a {
+  color: var(--brand);
+}

@@ -12,14 +12,14 @@ import {
 } from "../actions";
 
 const MSGS: Record<string, [string, string, string]> = {
-  saved: ["#e8f5ec", "#1c6e3c", "Saved."],
-  merged: ["#e8f5ec", "#1c6e3c", "Constituents merged."],
+  saved: ["#edf1ec", "var(--forest)", "Saved."],
+  merged: ["#edf1ec", "var(--forest)", "Constituents merged."],
   merge_notfound: ["#fdecec", "#9b1c1c", "Couldn't find that constituent to merge."],
   merge_self: ["#fff4e5", "#7a4f00", "Can't merge a constituent into itself."],
   merge_error: ["#fdecec", "#9b1c1c", "Merge failed."],
   rel_notfound: ["#fdecec", "#9b1c1c", "Related constituent not found."],
   rel_error: ["#fdecec", "#9b1c1c", "Could not add relationship."],
-  rel_added: ["#e8f5ec", "#1c6e3c", "Relationship added."],
+  rel_added: ["#edf1ec", "var(--forest)", "Relationship added."],
 };
 
 export default async function ConstituentDetailPage({
@@ -51,7 +51,7 @@ export default async function ConstituentDetailPage({
 
   return (
     <div style={{ maxWidth: 820 }}>
-      <Link href="/app/constituents" style={{ color: "#1c6e3c", textDecoration: "none", fontSize: ".9rem" }}>← Constituents</Link>
+      <Link href="/app/constituents" style={{ color: "var(--brand)", textDecoration: "none", fontSize: ".9rem" }}>← Constituents</Link>
       {banner && <div style={{ background: banner[0], color: banner[1], padding: ".7rem .9rem", borderRadius: 8, margin: ".75rem 0", fontSize: ".9rem" }}>{banner[2]}</div>}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: ".75rem", flexWrap: "wrap", gap: ".5rem" }}>
@@ -105,7 +105,7 @@ export default async function ConstituentDetailPage({
         {rels.length === 0 && <p style={{ color: "#999", fontSize: ".88rem", margin: 0 }}>No relationships.</p>}
         {rels.map((r) => (
           <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: ".3rem 0", fontSize: ".9rem" }}>
-            <span><Link href={`/app/constituents/${r.other_id}`} style={{ color: "#1c6e3c" }}>{r.other_name}</Link> <span style={{ color: "#999" }}>· {r.rel_type}</span></span>
+            <span><Link href={`/app/constituents/${r.other_id}`} style={{ color: "var(--brand)" }}>{r.other_name}</Link> <span style={{ color: "#999" }}>· {r.rel_type}</span></span>
             <form action={removeRelationshipAction}>
               <input type="hidden" name="id" value={id} />
               <input type="hidden" name="relId" value={r.id} />
@@ -135,7 +135,7 @@ export default async function ConstituentDetailPage({
       <section style={{ ...card, marginTop: "1rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <H>Gift history ({gifts.length})</H>
-          <a href={`/api/year-end/${id}?year=${new Date().getUTCFullYear()}`} target="_blank" rel="noreferrer" style={{ color: "#1c6e3c", fontSize: ".85rem", textDecoration: "none" }}>
+          <a href={`/api/year-end/${id}?year=${new Date().getUTCFullYear()}`} target="_blank" rel="noreferrer" style={{ color: "var(--brand)", fontSize: ".85rem", textDecoration: "none" }}>
             Year-end statement ↗
           </a>
         </div>
@@ -145,7 +145,7 @@ export default async function ConstituentDetailPage({
             <tbody>
               {gifts.map((g) => (
                 <tr key={g.id} style={{ borderTop: "1px solid #f1f2f1" }}>
-                  <td style={td}><Link href={`/app/gifts/${g.id}`} style={{ color: "#1c6e3c", textDecoration: "none" }}>{fmtDate(g.received_at)}</Link></td>
+                  <td style={td}><Link href={`/app/gifts/${g.id}`} style={{ color: "var(--brand)", textDecoration: "none" }}>{fmtDate(g.received_at)}</Link></td>
                   <td style={td}>{g.gift_type}</td>
                   <td style={{ ...td, textAlign: "right" }}>{usd(g.amount_cents)}</td>
                   <td style={td}>{g.status}</td>
@@ -184,5 +184,5 @@ const td: React.CSSProperties = { padding: ".4rem .3rem" };
 const inp: React.CSSProperties = { padding: ".45rem .55rem", border: "1px solid #ccc", borderRadius: 7, fontSize: ".9rem" };
 const btn: React.CSSProperties = { padding: ".45rem .8rem", border: "1px solid #ccc", borderRadius: 7, background: "#fff", fontSize: ".88rem", cursor: "pointer", color: "#333", textDecoration: "none" };
 const btnDanger: React.CSSProperties = { padding: ".45rem .9rem", border: "1px solid #e0b4b4", borderRadius: 8, background: "#fdecec", color: "#9b1c1c", cursor: "pointer", fontSize: ".9rem" };
-const chip: React.CSSProperties = { background: "#eef4f0", border: "1px solid #cfe0d6", color: "#1c6e3c", borderRadius: 99, padding: "2px 10px", fontSize: ".82rem", cursor: "pointer" };
+const chip: React.CSSProperties = { background: "#eef4f0", border: "1px solid #cfe0d6", color: "var(--brand)", borderRadius: 99, padding: "2px 10px", fontSize: ".82rem", cursor: "pointer" };
 const linkBtn: React.CSSProperties = { background: "none", border: "none", color: "#9b1c1c", cursor: "pointer", fontSize: ".82rem" };

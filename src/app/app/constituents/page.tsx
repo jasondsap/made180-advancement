@@ -46,7 +46,7 @@ export default async function ConstituentsPage({
               const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.org_name || "—";
               return (
                 <tr key={c.id} style={{ borderTop: "1px solid #f1f2f1" }}>
-                  <td style={td}><Link href={`/app/constituents/${c.id}`} style={{ color: "#1c6e3c", textDecoration: "none" }}>{name}</Link></td>
+                  <td style={td}><Link href={`/app/constituents/${c.id}`} style={{ color: "var(--brand)", textDecoration: "none" }}>{name}</Link></td>
                   <td style={td}>{c.email ?? "—"}</td>
                   <td style={td}>{c.type}</td>
                   <td style={td}>{fmtDate(c.created_at)}</td>
@@ -69,4 +69,4 @@ const th: React.CSSProperties = { padding: ".6rem .8rem", fontWeight: 600 };
 const td: React.CSSProperties = { padding: ".6rem .8rem" };
 const inp: React.CSSProperties = { padding: ".45rem .55rem", border: "1px solid #ccc", borderRadius: 7, fontSize: ".9rem" };
 const btn: React.CSSProperties = { padding: ".45rem .8rem", border: "1px solid #ccc", borderRadius: 7, background: "#fff", fontSize: ".88rem", cursor: "pointer", color: "#333" };
-const btnPrimary: React.CSSProperties = { padding: ".5rem .9rem", borderRadius: 8, background: "#1c6e3c", color: "#fff", textDecoration: "none", fontSize: ".9rem", fontWeight: 600 };
+const btnPrimary: React.CSSProperties = { padding: ".5rem .9rem", borderRadius: 8, background: "var(--brand)", color: "#fff", textDecoration: "none", fontSize: ".9rem", fontWeight: 600 };

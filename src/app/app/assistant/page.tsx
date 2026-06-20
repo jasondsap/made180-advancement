@@ -46,14 +46,14 @@ export default function AssistantPage() {
 
       <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) ask(q.trim()); }} style={{ display: "flex", gap: ".5rem" }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. How much have we raised this month?" style={{ flex: 1, padding: ".6rem .7rem", border: "1px solid #ccc", borderRadius: 8, fontSize: ".95rem" }} />
-        <button type="submit" disabled={loading} style={{ padding: ".6rem 1.1rem", borderRadius: 8, background: "#1c6e3c", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
+        <button type="submit" disabled={loading} style={{ padding: ".6rem 1.1rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
           {loading ? "Thinking…" : "Ask"}
         </button>
       </form>
 
       <div style={{ display: "flex", gap: ".4rem", flexWrap: "wrap", marginTop: ".75rem" }}>
         {EXAMPLES.map((ex) => (
-          <button key={ex} onClick={() => ask(ex)} style={{ background: "#eef4f0", border: "1px solid #cfe0d6", color: "#1c6e3c", borderRadius: 99, padding: "3px 10px", fontSize: ".8rem", cursor: "pointer" }}>{ex}</button>
+          <button key={ex} onClick={() => ask(ex)} style={{ background: "#eef4f0", border: "1px solid #cfe0d6", color: "var(--brand)", borderRadius: 99, padding: "3px 10px", fontSize: ".8rem", cursor: "pointer" }}>{ex}</button>
         ))}
       </div>
 
