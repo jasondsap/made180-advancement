@@ -72,6 +72,8 @@ export async function updateConstituentAction(fd: FormData) {
       phone: str(fd, "phone") || null,
       address: addr(fd),
       doNotContact: fd.get("doNotContact") === "on",
+      emailOptOut: fd.get("emailOptOut") === "on",
+      smsOptIn: fd.get("smsOptIn") === "on",
     });
   } catch (e) {
     error = e instanceof Error ? e.message : "Could not save";

@@ -10,6 +10,7 @@ import { createAddress, deleteAddress } from "@/repositories/engage/addresses";
 import { createMergeField, updateMergeFieldDefault, deleteMergeField } from "@/repositories/engage/mergeFields";
 import { createMessage, updateMessage, getMessage, deleteMessage } from "@/repositories/engage/messages";
 import { sendEmailMessage } from "@/domain/engage/send";
+import { sendSmsMessage } from "@/domain/engage/sendSms";
 import type { AudienceSpec, AddressType, EngageDomain } from "@/types/engage";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -223,4 +224,40 @@ export async function deleteMessageAction(fd: FormData) {
   await deleteMessage(ctx.orgId, str(fd, "id"));
   revalidatePath("/app/engage/email");
   redirect("/app/engage/email?tab=drafts");
+}
+
+// ---------- SMS messages ----------
+
+export async function saveSmsDraftAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  const fields = { name: str(fd, "name") || "Untitled text", bodyMd: str(fd, "body") || null, audience: buildAudience(fd) };
+  if (id) await updateMessage(ctx.orgId, id, fields);
+  else await createMessage(ctx.orgId, { channel: "sms", ...fields, createdBy: ctx.user.id });
+  revalidatePath("/app/engage/texts");
+  redirect("/app/engage/texts?tab=drafts&msg=saved");
+}
+
+export async function sendSmsNowAction(fd: FormData) {
+  const ctx = await requireManager();
+  let id = str(fd, "id");
+  const fields = { name: str(fd, "name") || "Untitled text", bodyMd: str(fd, "body") || null, audience: buildAudience(fd) };
+  if (id) {
+    await updateMessage(ctx.orgId, id, fields);
+  } else {
+    const m = await createMessage(ctx.orgId, { channel: "sms", ...fields, createdBy: ctx.user.id });
+    id = m.id;
+  }
+  const msg = await getMessage(ctx.orgId, id);
+  if (!msg?.body_md) throw new Error("Message body is required to send");
+  await sendSmsMessage(ctx.orgId, id);
+  revalidatePath("/app/engage/texts");
+  redirect(`/app/engage/texts/${id}?msg=sent`);
+}
+
+export async function deleteSmsMessageAction(fd: FormData) {
+  const ctx = await requireManager();
+  await deleteMessage(ctx.orgId, str(fd, "id"));
+  revalidatePath("/app/engage/texts");
+  redirect("/app/engage/texts?tab=drafts");
 }

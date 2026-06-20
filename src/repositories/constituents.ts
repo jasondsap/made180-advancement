@@ -128,6 +128,8 @@ export interface UpdateConstituentInput {
   phone?: string | null;
   address?: AddressJson | null;
   doNotContact?: boolean;
+  emailOptOut?: boolean;
+  smsOptIn?: boolean;
 }
 
 export async function updateConstituent(
@@ -147,13 +149,27 @@ export async function updateConstituent(
       email          = ${email ?? null},
       phone          = ${input.phone ?? null},
       address_json   = COALESCE(${address ?? null}::jsonb, address_json),
-      do_not_contact = COALESCE(${input.doNotContact ?? null}, do_not_contact)
+      do_not_contact = COALESCE(${input.doNotContact ?? null}, do_not_contact),
+      email_opt_out  = COALESCE(${input.emailOptOut ?? null}, email_opt_out),
+      sms_opt_in     = COALESCE(${input.smsOptIn ?? null}, sms_opt_in)
     WHERE org_id = ${orgId} AND id = ${id}
     RETURNING *
   `) as unknown as Constituent[];
   const row = rows[0];
   if (!row) throw new Error("updateConstituent: not found");
   return row;
+}
+
+/**
+ * Suppress SMS for every constituent with this phone, across orgs. Used by the
+ * Twilio inbound STOP handler, which carries no org context — like the
+ * provider-id webhook paths, the globally-unique phone is the key (documented
+ * exception to orgId-first).
+ */
+export async function setSmsOptInByPhone(phone: string, optIn: boolean): Promise<void> {
+  const digits = phone.replace(/[^\d+]/g, "");
+  if (!digits) return;
+  await sql`UPDATE constituents SET sms_opt_in = ${optIn} WHERE regexp_replace(coalesce(phone,''), '[^0-9+]', '', 'g') = ${digits}`;
 }
 
 /**
