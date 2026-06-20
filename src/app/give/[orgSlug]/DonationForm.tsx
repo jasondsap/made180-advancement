@@ -18,6 +18,7 @@ export function DonationForm({
   appealId,
   appealName,
   fundraiserSlug,
+  p2pMemberSlug,
 }: {
   orgSlug: string;
   funds: FundOption[];
@@ -26,6 +27,8 @@ export function DonationForm({
   appealName?: string | null;
   /** When set, the designation is pinned by the fundraiser; the fund picker is hidden. */
   fundraiserSlug?: string | null;
+  /** When set, the gift is also credited to this peer-to-peer member. */
+  p2pMemberSlug?: string | null;
 }) {
   const [frequency, setFrequency] = useState<Frequency>("monthly"); // monthly pre-selected (spec)
   const [fundCode, setFundCode] = useState<string>(funds[0]?.code ?? "general");
@@ -79,6 +82,7 @@ export function DonationForm({
           orgSlug,
           fundCode,
           fundraiserSlug: fundraiserSlug ?? undefined,
+          p2pMemberSlug: p2pMemberSlug ?? undefined,
           frequency,
           amountCents,
           donor: {

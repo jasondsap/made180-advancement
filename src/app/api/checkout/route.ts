@@ -21,6 +21,7 @@ import { getOrgBySlug } from "@/repositories/orgs";
 import { getFundByCode, getFundById } from "@/repositories/funds";
 import { getAppealById } from "@/repositories/appeals";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
+import { getMemberBySlug } from "@/repositories/p2pMembers";
 import { grossUpForFees } from "@/domain/fees";
 
 export const runtime = "nodejs";
@@ -38,6 +39,7 @@ const BodySchema = z.object({
   orgSlug: z.string().trim().min(1),
   fundCode: z.string().trim().min(1).optional(),
   fundraiserSlug: z.string().trim().min(1).optional(),
+  p2pMemberSlug: z.string().trim().min(1).optional(),
   frequency: z.enum(["one_time", "monthly"]),
   amountCents: z.number().int().min(100, "Minimum gift is $1.00").max(100_000_00),
   donor: z.object({
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
   let fundraiserId = "";
   let fundraiserCampaignId = "";
   let fundraiserFundId = "";
+  let p2pMemberId = "";
   if (body.fundraiserSlug) {
     const fr = await getPublishedFundraiser(org.slug, body.fundraiserSlug);
     if (!fr) {
@@ -90,6 +93,12 @@ export async function POST(req: NextRequest) {
     fundraiserId = fr.id;
     fundraiserCampaignId = fr.campaign_id ?? "";
     fundraiserFundId = fr.fund_id ?? "";
+
+    // Optional peer-to-peer member attribution (a supporter's page under the fundraiser).
+    if (body.p2pMemberSlug) {
+      const member = await getMemberBySlug(fr.id, body.p2pMemberSlug);
+      if (member) p2pMemberId = member.id;
+    }
   }
 
   // Designation: the fundraiser's fund wins; otherwise the form's fund code.
@@ -143,6 +152,7 @@ export async function POST(req: NextRequest) {
     appeal_id: appealId,
     campaign_id: campaignId,
     fundraiser_id: fundraiserId,
+    p2p_member_id: p2pMemberId,
   };
 
   const baseUrl = requireEnv("APP_BASE_URL").replace(/\/$/, "");

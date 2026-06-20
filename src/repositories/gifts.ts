@@ -20,7 +20,7 @@ export async function insertGift(
 
   const rows = (await sql`
     INSERT INTO gifts (
-      org_id, constituent_id, fund_id, campaign_id, appeal_id, pledge_id, fundraiser_id,
+      org_id, constituent_id, fund_id, campaign_id, appeal_id, pledge_id, fundraiser_id, p2p_member_id,
       gift_type, amount_cents, currency, status, received_at,
       stripe_payment_intent_id, stripe_customer_id, stripe_subscription_id,
       stripe_invoice_id, card_last4,
@@ -34,6 +34,7 @@ export async function insertGift(
       ${input.appealId ?? null},
       ${input.pledgeId ?? null},
       ${input.fundraiserId ?? null},
+      ${input.p2pMemberId ?? null},
       ${input.giftType},
       ${input.amountCents},
       ${input.currency ?? "usd"},

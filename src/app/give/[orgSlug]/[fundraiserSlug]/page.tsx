@@ -3,8 +3,12 @@ import { getOrgBySlug } from "@/repositories/orgs";
 import { getPublishedFundraiser, getFundraiser } from "@/repositories/fundraisers";
 import { getFundById, listFunds } from "@/repositories/funds";
 import { listPublicTicketTypes } from "@/repositories/ticketTypes";
+import { listMembers } from "@/repositories/p2pMembers";
+import { listPublicItems } from "@/repositories/auctions";
 import { DonationForm } from "../DonationForm";
 import { EventRegistration } from "./EventRegistration";
+import { P2PJoinForm } from "./P2PJoinForm";
+import { AuctionItems } from "./AuctionItems";
 
 /**
  * Public fundraiser page — a themed wrapper around the shared DonationForm. The
@@ -32,6 +36,11 @@ export default async function FundraiserPage({
       ? [{ code: fund.code, name: fund.name }]
       : (await listFunds(org.id, { activeOnly: true })).map((f) => ({ code: f.code, name: f.name }));
   const ticketTypes = isEvent ? await listPublicTicketTypes(fr.id) : [];
+  const hasP2P = fr.features.includes("peer_to_peer");
+  const hasAuction = fr.features.includes("auction");
+  const members = hasP2P ? await listMembers(org.id, fr.id) : [];
+  const auctionItems = hasAuction ? await listPublicItems(fr.id) : [];
+  const money = (c: number) => (c / 100).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
   const theme = fr.theme_json ?? {};
   const accent = theme.accent || org.primary_color || undefined;
@@ -89,6 +98,45 @@ export default async function FundraiserPage({
           appealId={null}
           appealName={null}
         />
+      )}
+
+      {hasP2P && (
+        <section style={{ marginTop: "2.5rem" }}>
+          <h2 style={{ fontSize: "1.3rem", margin: "0 0 .25rem" }}>Fundraisers</h2>
+          <p style={{ color: "#666", fontSize: ".9rem", margin: "0 0 1rem" }}>Rally your friends — start your own page for this cause.</p>
+          {members.length > 0 && (
+            <div style={{ display: "grid", gap: ".5rem", marginBottom: "1rem" }}>
+              {members.slice(0, 10).map((m) => (
+                <a key={m.id} href={`/give/${org.slug}/${fr.slug}/p/${m.slug}`} style={{ display: "flex", justifyContent: "space-between", border: "1px solid #e3ddd0", borderRadius: 10, padding: ".7rem .9rem", textDecoration: "none", color: "#222" }}>
+                  <span style={{ fontWeight: 600 }}>{m.name}</span>
+                  <span style={{ color: "var(--brand)" }}>{money(m.raised_cents)}{m.goal_cents ? ` / ${money(m.goal_cents)}` : ""}</span>
+                </a>
+              ))}
+            </div>
+          )}
+          <P2PJoinForm orgSlug={org.slug} fundraiserSlug={fr.slug} />
+        </section>
+      )}
+
+      {hasAuction && (
+        <section style={{ marginTop: "2.5rem" }}>
+          <h2 style={{ fontSize: "1.3rem", margin: "0 0 1rem" }}>Auction</h2>
+          <AuctionItems
+            orgSlug={org.slug}
+            fundraiserSlug={fr.slug}
+            items={auctionItems.map((it) => ({
+              id: it.id,
+              name: it.name,
+              description: it.description,
+              imageUrl: it.image_url,
+              status: it.status,
+              startingBidCents: it.starting_bid_cents,
+              minIncrementCents: it.min_increment_cents,
+              highBidCents: it.high_bid_cents,
+              bidCount: it.bid_count,
+            }))}
+          />
+        </section>
       )}
 
       <p style={{ color: "#999", fontSize: ".8rem", marginTop: "2rem", textAlign: "center" }}>
