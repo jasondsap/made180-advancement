@@ -4,8 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-
-const PALETTE = ["#1c6e3c", "#3a9d5d", "#6cc486", "#a8dcb8", "#e0a96d", "#c97b3c", "#7c9cbf"];
+import { chartPalette } from "@/lib/brand";
 
 const usdAxis = (cents: number) =>
   cents >= 100000 ? `$${Math.round(cents / 100000)}k` : `$${Math.round(cents / 100)}`;
@@ -25,7 +24,7 @@ export function MonthlyTrendChart({ data }: { data: { month: string; totalCents:
         <XAxis dataKey="label" tick={{ fontSize: 12 }} />
         <YAxis tickFormatter={usdAxis} tick={{ fontSize: 12 }} width={48} />
         <Tooltip formatter={(v: unknown) => usdTip(Number(v))} labelStyle={{ fontSize: 12 }} />
-        <Bar dataKey="cents" name="Raised" fill="#1c6e3c" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="cents" name="Raised" fill="#6E2A2A" radius={[3, 3, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -41,7 +40,7 @@ export function FundPieChart({ data }: { data: { name: string; totalCents: numbe
       <PieChart>
         <Pie data={rows} dataKey="totalCents" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={false}>
           {rows.map((_, i) => (
-            <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+            <Cell key={i} fill={chartPalette[i % chartPalette.length]} />
           ))}
         </Pie>
         <Tooltip formatter={(v: unknown) => usdTip(Number(v))} />

@@ -3,32 +3,35 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { ArchMark } from "@/components/ArchMark";
 
-const NVRE_GREEN = "#1c6e3c";
-const NVRE_DARK = "#0f3d22";
-const NVRE_ACCENT = "#7fd1a0";
+const OXBLOOD = "#6E2A2A";
+const OXBLOOD_BRIGHT = "#8B3A36";
+const BRASS = "#A9854B";
+const BRASS_LIGHT = "#C8A86A";
+const PARCHMENT = "#F2EBDC";
+const INK = "#2B2620";
+const FOREST = "#2F4032";
 
 function SignInContent() {
   const params = useSearchParams();
   const error = params.get("error");
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", display: "flex", fontFamily: "var(--font-ui)" }}>
       {/* LEFT — form */}
       <div style={{ width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: "2rem 3rem", background: "#fff", zIndex: 1 }}>
         <div style={{ maxWidth: 360, margin: "0 auto", width: "100%" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: "2rem" }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${NVRE_GREEN}, ${NVRE_DARK})`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.12)" }}>
-              <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#fff" }}>N</span>
-            </div>
-            <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#1a2b1f" }}>NVRE Advancement</span>
+          <div style={{ display: "flex", alignItems: "center", gap: ".7rem", marginBottom: "2.25rem" }}>
+            <ArchMark height={42} />
+            <span style={{ fontFamily: "var(--font-serif)", fontSize: "1.5rem", fontWeight: 600, color: INK, letterSpacing: ".01em" }}>Almonry</span>
           </div>
 
-          <h1 style={{ fontSize: "1.6rem", fontWeight: 700, color: "#1a2b1f", margin: "0 0 .35rem" }}>Welcome back</h1>
-          <p style={{ color: "#6b7280", fontSize: ".95rem", margin: "0 0 1.75rem" }}>Sign in to your account to continue.</p>
+          <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "1.9rem", fontWeight: 500, color: INK, margin: "0 0 .4rem" }}>Welcome back</h1>
+          <p style={{ color: "#6b6357", fontSize: ".95rem", margin: "0 0 1.75rem" }}>Sign in to your account to continue.</p>
 
           {error && (
-            <div style={{ marginBottom: "1.25rem", padding: ".7rem .85rem", background: "#fdecec", border: "1px solid #f3c5c5", borderRadius: 10, color: "#9b1c1c", fontSize: ".88rem" }}>
+            <div style={{ marginBottom: "1.25rem", padding: ".7rem .85rem", background: "#fbeceb", border: "1px solid #e6c3c0", borderRadius: 6, color: OXBLOOD, fontSize: ".88rem" }}>
               {error === "OAuthCallback" || error === "Callback"
                 ? "Authentication failed. Please try again."
                 : error === "AccessDenied"
@@ -39,18 +42,20 @@ function SignInContent() {
 
           <button
             onClick={() => signIn("cognito", { callbackUrl: "/app" })}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: ".6rem", padding: ".85rem 1rem", background: NVRE_GREEN, color: "#fff", border: "none", borderRadius: 12, fontWeight: 600, fontSize: "1rem", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: ".6rem", padding: ".9rem 1rem", background: OXBLOOD, color: PARCHMENT, border: "none", borderRadius: 3, fontWeight: 600, fontSize: "1rem", cursor: "pointer", letterSpacing: ".01em" }}
+            onMouseOver={(e) => (e.currentTarget.style.background = OXBLOOD_BRIGHT)}
+            onMouseOut={(e) => (e.currentTarget.style.background = OXBLOOD)}
           >
             Sign in with SSO
             <span aria-hidden style={{ fontSize: "1.1rem" }}>→</span>
           </button>
 
-          <div style={{ display: "flex", alignItems: "center", gap: ".4rem", marginTop: "1.5rem", color: "#9ca3af", fontSize: ".78rem", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: ".4rem", marginTop: "1.5rem", color: "#9b9388", fontSize: ".78rem", justifyContent: "center" }}>
             <span aria-hidden>🔒</span>
             <span>Secured by AWS Cognito</span>
           </div>
 
-          <p style={{ textAlign: "center", color: "#cbd2cd", fontSize: ".78rem", marginTop: "2.5rem" }}>
+          <p style={{ textAlign: "center", color: "#c2bbac", fontSize: ".78rem", marginTop: "2.5rem" }}>
             © {new Date().getFullYear()} MADe180 Digital Solutions
           </p>
         </div>
@@ -58,21 +63,20 @@ function SignInContent() {
 
       {/* RIGHT — branded panel */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex" }} className="signin-hero">
-        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${NVRE_DARK} 0%, ${NVRE_GREEN} 70%, #2f8f54 100%)` }} />
-        <div style={{ position: "absolute", top: -120, right: -120, width: 360, height: 360, borderRadius: "50%", background: "rgba(127,209,160,.18)", filter: "blur(60px)" }} />
-        <div style={{ position: "absolute", bottom: -160, left: -80, width: 460, height: 460, borderRadius: "50%", background: "rgba(255,255,255,.08)", filter: "blur(70px)" }} />
+        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(150deg, ${FOREST} 0%, #3b2622 55%, ${OXBLOOD} 100%)` }} />
+        <div style={{ position: "absolute", top: -120, right: -120, width: 360, height: 360, borderRadius: "50%", background: "rgba(169,133,75,.22)", filter: "blur(60px)" }} />
+        <div style={{ position: "absolute", bottom: -160, left: -80, width: 460, height: 460, borderRadius: "50%", background: "rgba(242,235,220,.10)", filter: "blur(70px)" }} />
 
         <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "4rem", maxWidth: 620 }}>
-          <p style={{ color: NVRE_ACCENT, fontSize: ".8rem", fontWeight: 600, letterSpacing: ".15em", textTransform: "uppercase", margin: "0 0 1rem" }}>
-            Advancement Platform
+          <p style={{ color: BRASS_LIGHT, fontSize: ".78rem", fontWeight: 600, letterSpacing: ".22em", textTransform: "uppercase", margin: "0 0 1.25rem" }}>
+            Stewardship software
           </p>
-          <h2 style={{ fontSize: "2.6rem", fontWeight: 700, color: "#fff", lineHeight: 1.15, margin: "0 0 1.25rem" }}>
-            Every gift,<br />tracked with care.<br />
-            <span style={{ color: NVRE_ACCENT }}>Every donor, valued.</span>
+          <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "3rem", fontWeight: 400, color: PARCHMENT, lineHeight: 1.08, margin: "0 0 1.5rem", letterSpacing: "-.015em" }}>
+            Where generosity<br />is <em style={{ fontStyle: "italic", color: BRASS_LIGHT }}>kept</em>.
           </h2>
-          <p style={{ color: "rgba(255,255,255,.75)", fontSize: "1rem", lineHeight: 1.6, maxWidth: 440 }}>
-            Donor CRM and donation processing for New Vision Renewable Energy — from
-            the first gift through receipts, recurring giving, and reporting.
+          <p style={{ fontFamily: "var(--font-body)", color: "rgba(242,235,220,.78)", fontSize: "1.05rem", lineHeight: 1.6, maxWidth: 440 }}>
+            Receive every gift. Remember every donor. Keep faith with both — from the first
+            gift through receipts, recurring giving, and reporting.
           </p>
 
           <div style={{ display: "grid", gap: ".85rem", marginTop: "2.25rem" }}>
@@ -83,8 +87,8 @@ function SignInContent() {
               "QuickBooks export & AI-assisted insights",
             ].map((f) => (
               <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: ".6rem" }}>
-                <span style={{ color: NVRE_ACCENT, fontWeight: 700 }} aria-hidden>✓</span>
-                <span style={{ color: "rgba(255,255,255,.85)", fontSize: ".92rem" }}>{f}</span>
+                <span style={{ color: BRASS_LIGHT, fontWeight: 700 }} aria-hidden>✓</span>
+                <span style={{ color: "rgba(242,235,220,.88)", fontSize: ".92rem" }}>{f}</span>
               </div>
             ))}
           </div>

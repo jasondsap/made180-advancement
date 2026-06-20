@@ -92,7 +92,7 @@ export default async function GiftsPage({
             )}
             {gifts.map((g) => (
               <tr key={g.id} style={{ borderTop: "1px solid #f1f2f1" }}>
-                <Td><Link href={`/app/gifts/${g.id}`} style={{ color: "#1c6e3c", textDecoration: "none" }}>{fmtDate(g.received_at)}</Link></Td>
+                <Td><Link href={`/app/gifts/${g.id}`} style={{ color: "var(--brand)", textDecoration: "none" }}>{fmtDate(g.received_at)}</Link></Td>
                 <Td>{donorName(g)}</Td>
                 <Td>{g.fund_name ?? "—"}</Td>
                 <Td>{g.gift_type}</Td>
@@ -124,7 +124,7 @@ function Td({ children, right }: { children: React.ReactNode; right?: boolean })
 }
 function StatusPill({ status }: { status: string }) {
   const colors: Record<string, [string, string]> = {
-    succeeded: ["#e8f5ec", "#1c6e3c"], pending: ["#fff4e5", "#7a4f00"],
+    succeeded: ["#edf1ec", "var(--forest)"], pending: ["#fff4e5", "#7a4f00"],
     failed: ["#fdecec", "#9b1c1c"], refunded: ["#eef0f2", "#555"],
   };
   const [bg, fg] = colors[status] ?? ["#eee", "#555"];
@@ -133,5 +133,5 @@ function StatusPill({ status }: { status: string }) {
 
 const inp: React.CSSProperties = { padding: ".45rem .55rem", border: "1px solid #ccc", borderRadius: 7, fontSize: ".88rem" };
 const btn: React.CSSProperties = { padding: ".45rem .8rem", border: "1px solid #ccc", borderRadius: 7, background: "#fff", fontSize: ".88rem", cursor: "pointer", color: "#333" };
-const btnPrimary: React.CSSProperties = { padding: ".5rem .9rem", borderRadius: 8, background: "#1c6e3c", color: "#fff", textDecoration: "none", fontSize: ".9rem", fontWeight: 600 };
+const btnPrimary: React.CSSProperties = { padding: ".5rem .9rem", borderRadius: 8, background: "var(--brand)", color: "#fff", textDecoration: "none", fontSize: ".9rem", fontWeight: 600 };
 const filterBar: React.CSSProperties = { display: "flex", gap: ".5rem", flexWrap: "wrap", marginTop: "1rem", alignItems: "center" };

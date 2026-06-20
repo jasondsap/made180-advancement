@@ -30,7 +30,7 @@ export default async function ReportsPage({
               <option value="">All statuses</option>
               <option value="refunded">Refunded</option>
             </select>
-            <button type="submit" style={{ ...btn, background: "#1c6e3c", color: "#fff", border: "none", fontWeight: 600 }}>Download CSV</button>
+            <button type="submit" style={{ ...btn, background: "var(--brand)", color: "#fff", border: "none", fontWeight: 600 }}>Download CSV</button>
           </form>
         </section>
       )}
@@ -76,7 +76,7 @@ function LapseTable({ title, subtitle, rows, priorLabel }: { title: string; subt
               const name = [r.first_name, r.last_name].filter(Boolean).join(" ") || r.org_name || "—";
               return (
                 <tr key={r.id} style={{ borderTop: "1px solid #f1f2f1" }}>
-                  <td style={td}><Link href={`/app/constituents/${r.id}`} style={{ color: "#1c6e3c", textDecoration: "none" }}>{name}</Link></td>
+                  <td style={td}><Link href={`/app/constituents/${r.id}`} style={{ color: "var(--brand)", textDecoration: "none" }}>{name}</Link></td>
                   <td style={td}>{r.email ?? "—"}</td>
                   <td style={{ ...td, textAlign: "right" }}>{usd(r.prior_cents)}</td>
                   <td style={{ ...td, textAlign: "right" }}>{usd(r.lifetime_cents)}</td>

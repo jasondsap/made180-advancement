@@ -93,4 +93,4 @@ const addBar: React.CSSProperties = { display: "flex", gap: ".5rem", flexWrap: "
 const muted: React.CSSProperties = { color: "#999", fontSize: ".82rem" };
 const inp: React.CSSProperties = { padding: ".4rem .5rem", border: "1px solid #ccc", borderRadius: 6, fontSize: ".88rem" };
 const btn: React.CSSProperties = { padding: ".35rem .7rem", border: "1px solid #ccc", borderRadius: 6, background: "#fff", fontSize: ".82rem", cursor: "pointer" };
-const btnPrimary: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 8, background: "#1c6e3c", color: "#fff", border: "none", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };
+const btnPrimary: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };

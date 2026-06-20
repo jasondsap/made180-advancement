@@ -106,7 +106,7 @@ export function DonationForm({
   return (
     <form onSubmit={handleSubmit} aria-disabled={!donationsEnabled}>
       {appealName && (
-        <p style={{ background: "#eef4f0", border: "1px solid #cfe0d6", color: "#1c6e3c", borderRadius: 8, padding: ".5rem .75rem", fontSize: ".85rem", margin: "0 0 1rem" }}>
+        <p style={{ background: "#eef4f0", border: "1px solid #cfe0d6", color: "var(--brand)", borderRadius: 8, padding: ".5rem .75rem", fontSize: ".85rem", margin: "0 0 1rem" }}>
           Giving in response to: <strong>{appealName}</strong>
         </p>
       )}
@@ -259,13 +259,13 @@ const styles: Record<string, CSSProperties> = {
   segment: { display: "flex", gap: ".5rem" },
   chips: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))", gap: ".5rem" },
   segBtn: { flex: 1, padding: ".7rem .6rem", fontSize: ".95rem", border: "1px solid #ccc", borderRadius: 8, background: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: ".4rem" },
-  segBtnActive: { borderColor: "#1c6e3c", background: "#e8f5ec", color: "#1c6e3c", fontWeight: 600 },
-  badge: { fontSize: ".65rem", background: "#1c6e3c", color: "#fff", borderRadius: 999, padding: "1px 6px" },
+  segBtnActive: { borderColor: "var(--brand)", background: "#edf1ec", color: "var(--brand)", fontWeight: 600 },
+  badge: { fontSize: ".65rem", background: "var(--brand)", color: "#fff", borderRadius: 999, padding: "1px 6px" },
   row2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".5rem" },
   row3: { display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: ".5rem" },
   checkRow: { display: "flex", gap: ".5rem", alignItems: "flex-start", fontSize: ".95rem", lineHeight: 1.35, cursor: "pointer" },
   dollarSign: { position: "absolute", left: ".8rem", top: ".7rem", color: "#666" },
   hint: { fontSize: ".8rem", color: "#888", margin: ".1rem 0 0" },
   error: { color: "#b00020", fontSize: ".9rem", margin: "0 0 .75rem" },
-  submit: { width: "100%", padding: "0.9rem", fontSize: "1.05rem", fontWeight: 600, color: "#fff", background: "#1c6e3c", border: "none", borderRadius: 10, cursor: "pointer" },
+  submit: { width: "100%", padding: "0.9rem", fontSize: "1.05rem", fontWeight: 600, color: "#fff", background: "var(--brand)", border: "none", borderRadius: 10, cursor: "pointer" },
 };

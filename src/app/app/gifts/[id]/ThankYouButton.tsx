@@ -25,7 +25,7 @@ export function ThankYouButton({ giftId }: { giftId: string }) {
 
   return (
     <div style={{ marginTop: "1rem" }}>
-      <button onClick={generate} disabled={loading} style={{ padding: ".5rem .9rem", border: "1px solid #cfe0d6", borderRadius: 8, background: "#eef4f0", color: "#1c6e3c", cursor: "pointer", fontSize: ".9rem", fontWeight: 600 }}>
+      <button onClick={generate} disabled={loading} style={{ padding: ".5rem .9rem", border: "1px solid #cfe0d6", borderRadius: 8, background: "#eef4f0", color: "var(--brand)", cursor: "pointer", fontSize: ".9rem", fontWeight: 600 }}>
         {loading ? "Drafting…" : "✨ Draft thank-you"}
       </button>
       {error && <p style={{ color: "#9b1c1c", fontSize: ".85rem" }}>{error}</p>}

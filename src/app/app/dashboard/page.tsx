@@ -70,9 +70,9 @@ export default async function DashboardPage({
               href={`/app/dashboard?period=${p.key}`}
               style={{
                 fontSize: ".82rem", padding: ".3rem .6rem", borderRadius: 6, textDecoration: "none",
-                border: "1px solid", borderColor: p.key === period ? "#1c6e3c" : "#d8dad8",
-                background: p.key === period ? "#e8f5ec" : "#fff",
-                color: p.key === period ? "#1c6e3c" : "#444",
+                border: "1px solid", borderColor: p.key === period ? "var(--brand)" : "#d8dad8",
+                background: p.key === period ? "#edf1ec" : "#fff",
+                color: p.key === period ? "var(--brand)" : "#444",
               }}
             >
               {p.label}
@@ -116,7 +116,7 @@ export default async function DashboardPage({
                     </span>
                   </div>
                   <div style={{ height: 8, background: "#eef0ee", borderRadius: 99 }}>
-                    <div style={{ height: 8, width: `${pct ?? 0}%`, background: "#1c6e3c", borderRadius: 99 }} />
+                    <div style={{ height: 8, width: `${pct ?? 0}%`, background: "var(--brand)", borderRadius: 99 }} />
                   </div>
                 </div>
               );
