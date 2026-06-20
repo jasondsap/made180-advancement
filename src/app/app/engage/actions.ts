@@ -8,7 +8,9 @@ import { createDomain, getDomain, setDomainVerification, deleteDomain } from "@/
 import { createSender, setDefaultSender, deleteSender } from "@/repositories/engage/senders";
 import { createAddress, deleteAddress } from "@/repositories/engage/addresses";
 import { createMergeField, updateMergeFieldDefault, deleteMergeField } from "@/repositories/engage/mergeFields";
-import { createMessage, updateMessage, getMessage, deleteMessage } from "@/repositories/engage/messages";
+import { createMessage, updateMessage, getMessage, deleteMessage, setMessageStatus } from "@/repositories/engage/messages";
+import { resolveAudience } from "@/repositories/engage/audience";
+import { bulkInsertRecipients } from "@/repositories/engage/recipients";
 import { sendEmailMessage } from "@/domain/engage/send";
 import { sendSmsMessage } from "@/domain/engage/sendSms";
 import type { AudienceSpec, AddressType, EngageDomain } from "@/types/engage";
@@ -260,4 +262,42 @@ export async function deleteSmsMessageAction(fd: FormData) {
   await deleteMessage(ctx.orgId, str(fd, "id"));
   revalidatePath("/app/engage/texts");
   redirect("/app/engage/texts?tab=drafts");
+}
+
+// ---------- Mailings (printable letters; channel 'mail') ----------
+
+export async function saveMailingDraftAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  const fields = { name: str(fd, "name") || "Untitled mailing", bodyMd: str(fd, "body") || null, audience: buildAudience(fd) };
+  if (id) await updateMessage(ctx.orgId, id, fields);
+  else await createMessage(ctx.orgId, { channel: "mail", ...fields, createdBy: ctx.user.id });
+  revalidatePath("/app/engage/mailings");
+  redirect("/app/engage/mailings?tab=drafts&msg=saved");
+}
+
+/** Freeze the recipient list (contacts with a mailing address) and mark generated. */
+export async function generateMailingAction(fd: FormData) {
+  const ctx = await requireManager();
+  let id = str(fd, "id");
+  const fields = { name: str(fd, "name") || "Untitled mailing", bodyMd: str(fd, "body") || null, audience: buildAudience(fd) };
+  if (id) {
+    await updateMessage(ctx.orgId, id, fields);
+  } else {
+    const m = await createMessage(ctx.orgId, { channel: "mail", ...fields, createdBy: ctx.user.id });
+    id = m.id;
+  }
+  const audience = buildAudience(fd);
+  const recipients = await resolveAudience(ctx.orgId, audience, "mail");
+  await bulkInsertRecipients(ctx.orgId, id, recipients.map((c) => ({ constituentId: c.id })));
+  await setMessageStatus(ctx.orgId, id, "sent", { recipientCount: recipients.length, sentAt: new Date() });
+  revalidatePath("/app/engage/mailings");
+  redirect(`/app/engage/mailings/${id}?msg=generated`);
+}
+
+export async function deleteMailingAction(fd: FormData) {
+  const ctx = await requireManager();
+  await deleteMessage(ctx.orgId, str(fd, "id"));
+  revalidatePath("/app/engage/mailings");
+  redirect("/app/engage/mailings?tab=drafts");
 }
