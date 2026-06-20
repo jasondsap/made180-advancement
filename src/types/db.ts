@@ -75,6 +75,44 @@ export interface Fund {
   created_at: Date;
 }
 
+export interface P2PMember {
+  id: string;
+  org_id: string;
+  fundraiser_id: string;
+  constituent_id: string | null;
+  name: string;
+  slug: string;
+  goal_cents: number | null;
+  message: string | null;
+  created_at: Date;
+}
+
+export interface AuctionItem {
+  id: string;
+  org_id: string;
+  fundraiser_id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  fair_market_value_cents: number | null;
+  starting_bid_cents: number;
+  min_increment_cents: number;
+  status: string; // open | closed
+  created_at: Date;
+}
+
+export interface AuctionBid {
+  id: string;
+  org_id: string;
+  auction_item_id: string;
+  fundraiser_id: string;
+  constituent_id: string | null;
+  name: string | null;
+  email: string | null;
+  amount_cents: number;
+  created_at: Date;
+}
+
 export interface TicketType {
   id: string;
   org_id: string;
@@ -140,6 +178,7 @@ export interface Gift {
   appeal_id: string | null;
   pledge_id: string | null;
   fundraiser_id: string | null;
+  p2p_member_id: string | null;
   gift_type: GiftType;
   amount_cents: number;
   currency: string;
@@ -199,6 +238,7 @@ export interface InsertGiftInput {
   appealId?: string | null;
   pledgeId?: string | null;
   fundraiserId?: string | null;
+  p2pMemberId?: string | null;
   giftType: GiftType;
   amountCents: number;
   currency?: string;

@@ -6,6 +6,7 @@ import { getOrgById } from "@/repositories/orgs";
 import { listFunds } from "@/repositories/funds";
 import { listCampaigns } from "@/repositories/campaigns";
 import { listTicketTypes } from "@/repositories/ticketTypes";
+import { listItems } from "@/repositories/auctions";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import {
   updateFundraiserAction,
@@ -17,6 +18,9 @@ import {
   addTicketTypeAction,
   updateTicketTypeAction,
   deleteTicketTypeAction,
+  addAuctionItemAction,
+  setAuctionStatusAction,
+  deleteAuctionItemAction,
 } from "../../actions";
 import type { FundraiserStatus } from "@/types/db";
 
@@ -46,6 +50,10 @@ export default async function EditFundraiserPage({
   if (!fr || !org) notFound();
 
   const tickets = fr.type === "event" ? await listTicketTypes(ctx.orgId, fr.id) : [];
+  const hasAuction = fr.features.includes("auction");
+  const hasP2P = fr.features.includes("peer_to_peer");
+  const auctionItems = hasAuction ? await listItems(ctx.orgId, fr.id) : [];
+  const usdFull = (c: number) => (c / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
   const theme = fr.theme_json ?? {};
   const amounts = (theme.suggestedAmounts ?? []).map((c) => (c / 100).toString()).join(", ");
   const publicUrl = `/give/${org.slug}/${fr.slug}`;
@@ -141,6 +149,61 @@ export default async function EditFundraiserPage({
             <Field label="Price ($)"><input name="price" type="number" min="0" step="1" defaultValue="0" style={inp} /></Field>
             <Field label="Capacity"><input name="capacity" type="number" min="0" placeholder="∞" style={inp} /></Field>
             <button style={btnPrimary}>Add ticket</button>
+          </form>
+        </section>
+      )}
+
+      {/* Peer-to-peer */}
+      {hasP2P && (
+        <section style={section}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: "1.05rem", margin: 0 }}>Peer-to-peer</h2>
+            <Link href={`/app/fundraisers/${fr.id}/members`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>View fundraisers →</Link>
+          </div>
+          <p style={{ color: "#7a7367", fontSize: ".85rem", margin: ".4rem 0 0" }}>
+            Supporters can start their own pages from the public fundraiser page. Their gifts roll up here.
+          </p>
+        </section>
+      )}
+
+      {/* Auction items */}
+      {hasAuction && (
+        <section style={section}>
+          <h2 style={{ fontSize: "1.05rem", margin: "0 0 .75rem" }}>Auction items</h2>
+          {auctionItems.map((it) => (
+            <div key={it.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--app-border)", borderRadius: 8, padding: ".6rem .8rem", marginBottom: ".5rem" }}>
+              <div>
+                <strong>{it.name}</strong>
+                <div style={{ fontSize: ".8rem", color: "#888" }}>
+                  Start {usdFull(it.starting_bid_cents)} · {it.high_bid_cents != null ? `high bid ${usdFull(it.high_bid_cents)} (${it.bid_count})` : "no bids"} · {it.status}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: ".4rem" }}>
+                <form action={setAuctionStatusAction}>
+                  <input type="hidden" name="id" value={it.id} />
+                  <input type="hidden" name="fundraiserId" value={fr.id} />
+                  <input type="hidden" name="status" value={it.status === "open" ? "closed" : "open"} />
+                  <button style={btnGhost}>{it.status === "open" ? "Close" : "Reopen"}</button>
+                </form>
+                <form action={deleteAuctionItemAction}>
+                  <input type="hidden" name="id" value={it.id} />
+                  <input type="hidden" name="fundraiserId" value={fr.id} />
+                  <button style={btnDangerSm}>Remove</button>
+                </form>
+              </div>
+            </div>
+          ))}
+          <form action={addAuctionItemAction} style={{ display: "grid", gap: ".5rem", marginTop: ".75rem", borderTop: "1px solid var(--app-border)", paddingTop: ".75rem" }}>
+            <input type="hidden" name="fundraiserId" value={fr.id} />
+            <input name="name" placeholder="Item name" style={inp} required />
+            <input name="description" placeholder="Description (optional)" style={inp} />
+            <input name="imageUrl" type="url" placeholder="Image URL (optional)" style={inp} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: ".5rem" }}>
+              <Field label="Starting bid ($)"><input name="startingBid" type="number" min="0" step="1" defaultValue="0" style={inp} /></Field>
+              <Field label="Min increment ($)"><input name="minIncrement" type="number" min="1" step="1" defaultValue="5" style={inp} /></Field>
+              <Field label="Fair market value ($)"><input name="fmv" type="number" min="0" step="1" style={inp} /></Field>
+            </div>
+            <div><button style={btnPrimary}>Add item</button></div>
           </form>
         </section>
       )}

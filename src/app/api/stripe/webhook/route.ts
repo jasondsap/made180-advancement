@@ -175,6 +175,7 @@ async function handleOneTimeSession(stripe: Stripe, session: Stripe.Checkout.Ses
     campaignId: m.campaign_id || null,
     appealId: m.appeal_id || null,
     fundraiserId: m.fundraiser_id || null,
+    p2pMemberId: m.p2p_member_id || null,
     tributeType: asTribute(m.tribute_type),
     tributeName: m.tribute_name || null,
   });
@@ -202,6 +203,7 @@ async function handleOneTimePaymentIntent(stripe: Stripe, pi: Stripe.PaymentInte
     campaignId: m.campaign_id || null,
     appealId: m.appeal_id || null,
     fundraiserId: m.fundraiser_id || null,
+    p2pMemberId: m.p2p_member_id || null,
     tributeType: asTribute(m.tribute_type),
     tributeName: m.tribute_name || null,
   });
@@ -220,6 +222,7 @@ type OneTimeInput = {
   campaignId: string | null;
   appealId: string | null;
   fundraiserId: string | null;
+  p2pMemberId: string | null;
   tributeType: TributeType | null;
   tributeName: string | null;
 };
@@ -241,6 +244,7 @@ async function recordOneTimeGift(stripe: Stripe, input: OneTimeInput) {
     campaignId: input.campaignId,
     appealId: input.appealId,
     fundraiserId: input.fundraiserId,
+    p2pMemberId: input.p2pMemberId,
     giftType: "one_time",
     amountCents: input.amountCents,
     status: "succeeded",
@@ -392,6 +396,7 @@ async function handleRecurringInvoice(stripe: Stripe, invoice: InvoiceLoose, eve
     campaignId: subMeta.campaign_id || null,
     appealId: subMeta.appeal_id || null,
     fundraiserId: subMeta.fundraiser_id || null,
+    p2pMemberId: subMeta.p2p_member_id || null,
     giftType: "recurring",
     amountCents: invoice.amount_paid ?? 0,
     status: "succeeded",
