@@ -199,6 +199,15 @@ export async function mergeConstituents(
   ]);
 }
 
+/** Fetch constituents by id set (for merged mailings). Org-scoped. */
+export async function listConstituentsByIds(orgId: string, ids: string[]): Promise<Constituent[]> {
+  assertOrgId(orgId);
+  if (ids.length === 0) return [];
+  return (await sql`
+    SELECT * FROM constituents WHERE org_id = ${orgId} AND id = ANY(${ids}::uuid[])
+  `) as unknown as Constituent[];
+}
+
 /** Set the email marketing opt-out flag (used by the public unsubscribe route). */
 export async function setEmailOptOut(orgId: string, id: string, optOut: boolean): Promise<void> {
   assertOrgId(orgId);
