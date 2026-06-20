@@ -17,12 +17,15 @@ export function DonationForm({
   donationsEnabled,
   appealId,
   appealName,
+  fundraiserSlug,
 }: {
   orgSlug: string;
   funds: FundOption[];
   donationsEnabled: boolean;
   appealId?: string | null;
   appealName?: string | null;
+  /** When set, the designation is pinned by the fundraiser; the fund picker is hidden. */
+  fundraiserSlug?: string | null;
 }) {
   const [frequency, setFrequency] = useState<Frequency>("monthly"); // monthly pre-selected (spec)
   const [fundCode, setFundCode] = useState<string>(funds[0]?.code ?? "general");
@@ -75,6 +78,7 @@ export function DonationForm({
         body: JSON.stringify({
           orgSlug,
           fundCode,
+          fundraiserSlug: fundraiserSlug ?? undefined,
           frequency,
           amountCents,
           donor: {
@@ -123,21 +127,23 @@ export function DonationForm({
         </div>
       </Fieldset>
 
-      {/* Fund */}
-      <Fieldset legend="Designation">
-        <select
-          value={fundCode}
-          onChange={(e) => setFundCode(e.target.value)}
-          style={styles.input}
-          aria-label="Fund designation"
-        >
-          {funds.map((f) => (
-            <option key={f.code} value={f.code}>
-              {f.name}
-            </option>
-          ))}
-        </select>
-      </Fieldset>
+      {/* Fund — hidden when a fundraiser pins the designation */}
+      {!fundraiserSlug && (
+        <Fieldset legend="Designation">
+          <select
+            value={fundCode}
+            onChange={(e) => setFundCode(e.target.value)}
+            style={styles.input}
+            aria-label="Fund designation"
+          >
+            {funds.map((f) => (
+              <option key={f.code} value={f.code}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </Fieldset>
+      )}
 
       {/* Amount */}
       <Fieldset legend="Amount">

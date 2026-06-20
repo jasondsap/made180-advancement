@@ -25,6 +25,9 @@ export type GiftType =
 export type GiftStatus = "succeeded" | "pending" | "failed" | "refunded";
 export type TributeType = "in_honor" | "in_memory";
 export type MembershipRole = "org_admin" | "org_staff";
+export type FundraiserType = "donation_form" | "fundraising_page" | "event";
+export type FundraiserStatus = "unpublished" | "published" | "ended" | "archived";
+export type FundraiserFeature = "peer_to_peer" | "auction";
 
 // ---------------------------------------------------------------------------
 // Rows
@@ -72,6 +75,33 @@ export interface Fund {
   created_at: Date;
 }
 
+export interface FundraiserTheme {
+  accent?: string | null;
+  coverImageUrl?: string | null;
+  story?: string | null;
+  suggestedAmounts?: number[] | null; // cents
+}
+
+export interface Fundraiser {
+  id: string;
+  org_id: string;
+  type: FundraiserType;
+  title: string;
+  slug: string;
+  status: FundraiserStatus;
+  goal_cents: number | null;
+  currency: string;
+  fund_id: string | null;
+  campaign_id: string | null;
+  features: FundraiserFeature[];
+  payments_enabled: boolean;
+  pinned: boolean;
+  theme_json: FundraiserTheme | null;
+  published_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface Gift {
   id: string;
   org_id: string;
@@ -80,6 +110,7 @@ export interface Gift {
   campaign_id: string | null;
   appeal_id: string | null;
   pledge_id: string | null;
+  fundraiser_id: string | null;
   gift_type: GiftType;
   amount_cents: number;
   currency: string;
@@ -138,6 +169,7 @@ export interface InsertGiftInput {
   campaignId?: string | null;
   appealId?: string | null;
   pledgeId?: string | null;
+  fundraiserId?: string | null;
   giftType: GiftType;
   amountCents: number;
   currency?: string;
