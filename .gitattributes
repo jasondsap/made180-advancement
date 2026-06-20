@@ -1,0 +1,4 @@
+# Migration files are checksummed byte-for-byte by scripts/migrate.ts. They MUST
+# stay LF in the working tree, or autocrlf would flip an already-applied file to
+# CRLF and trip the "contents changed" integrity check.
+*.sql text eol=lf
