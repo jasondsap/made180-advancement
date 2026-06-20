@@ -34,6 +34,10 @@ function readEnv() {
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM_FALLBACK: process.env.RESEND_FROM_FALLBACK,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+    TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
+    TWILIO_MESSAGING_SERVICE_SID: process.env.TWILIO_MESSAGING_SERVICE_SID,
+    TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     APP_BASE_URL: process.env.APP_BASE_URL,
     // Engage / Fundraisers feature flags ("1"/"true" to enable).

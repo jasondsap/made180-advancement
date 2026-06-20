@@ -36,9 +36,17 @@ export function ConstituentForm({
           <Field label="Phone"><input name="phone" defaultValue={defaults?.phone ?? ""} style={inp} /></Field>
         </Row>
         {defaults?.id && (
-          <label style={{ display: "flex", gap: ".5rem", alignItems: "center", fontSize: ".9rem" }}>
-            <input type="checkbox" name="doNotContact" defaultChecked={defaults?.do_not_contact ?? false} /> Do not contact
-          </label>
+          <div style={{ display: "grid", gap: ".4rem" }}>
+            <label style={{ display: "flex", gap: ".5rem", alignItems: "center", fontSize: ".9rem" }}>
+              <input type="checkbox" name="doNotContact" defaultChecked={defaults?.do_not_contact ?? false} /> Do not contact (excludes from all Engage sends)
+            </label>
+            <label style={{ display: "flex", gap: ".5rem", alignItems: "center", fontSize: ".9rem" }}>
+              <input type="checkbox" name="smsOptIn" defaultChecked={defaults?.sms_opt_in ?? false} /> SMS opt-in (consent to receive texts)
+            </label>
+            <label style={{ display: "flex", gap: ".5rem", alignItems: "center", fontSize: ".9rem" }}>
+              <input type="checkbox" name="emailOptOut" defaultChecked={defaults?.email_opt_out ?? false} /> Email opt-out (unsubscribed from marketing email)
+            </label>
+          </div>
         )}
       </fieldset>
 
