@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { createFund } from "@/repositories/funds";
 import type { Org } from "@/types/db";
 
 /**
@@ -65,7 +66,11 @@ export async function createOrg(input: {
     )
     RETURNING *
   `) as unknown as Org[];
-  return rows[0]!;
+  const org = rows[0]!;
+  // Seed a default unrestricted fund so the org's giving page works on day one
+  // (a gift must designate a fund). Org-scoped — never inherits another tenant's.
+  await createFund(org.id, { code: "general", name: "General Fund", restricted: false });
+  return org;
 }
 
 /** Bind an org to its Stripe Connect (Express) account. */
