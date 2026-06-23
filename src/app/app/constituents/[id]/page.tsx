@@ -6,13 +6,20 @@ import { constituentLtv, listGiftsForConstituent } from "@/repositories/gifts";
 import { listRecurringPlansForConstituent } from "@/repositories/recurringPlans";
 import { listRoles, KNOWN_ROLES } from "@/repositories/attributes";
 import { listRelationships, REL_TYPES } from "@/repositories/relationships";
+import { listInteractions } from "@/repositories/interactions";
+import { listTasksForConstituent } from "@/repositories/tasks";
+import { listMembersForOrg } from "@/repositories/users";
 import { usd, fmtDate } from "@/lib/format";
+import type { Interaction, Task } from "@/types/db";
 import {
   addRoleAction, removeRoleAction, addRelationshipAction, removeRelationshipAction, mergeAction,
+  logInteractionAction, deleteInteractionAction,
 } from "../actions";
+import { createTaskAction, toggleTaskAction, deleteTaskAction } from "../../tasks/actions";
 
 const MSGS: Record<string, [string, string, string]> = {
   saved: ["#edf1ec", "var(--forest)", "Saved."],
+  logged: ["#edf1ec", "var(--forest)", "Interaction logged."],
   merged: ["#edf1ec", "var(--forest)", "Constituents merged."],
   merge_notfound: ["#fdecec", "#9b1c1c", "Couldn't find that constituent to merge."],
   merge_self: ["#fff4e5", "#7a4f00", "Can't merge a constituent into itself."],
@@ -37,12 +44,15 @@ export default async function ConstituentDetailPage({
   const con = await getConstituentById(ctx.orgId, id);
   if (!con) notFound();
 
-  const [ltv, gifts, plans, roles, rels] = await Promise.all([
+  const [ltv, gifts, plans, roles, rels, interactions, tasks, members] = await Promise.all([
     constituentLtv(ctx.orgId, id),
     listGiftsForConstituent(ctx.orgId, id),
     listRecurringPlansForConstituent(ctx.orgId, id),
     listRoles(ctx.orgId, id),
     listRelationships(ctx.orgId, id),
+    listInteractions(ctx.orgId, id),
+    listTasksForConstituent(ctx.orgId, id),
+    listMembersForOrg(ctx.orgId),
   ]);
 
   const name = [con.first_name, con.last_name].filter(Boolean).join(" ") || con.org_name || con.email || "Constituent";
@@ -77,6 +87,48 @@ export default async function ConstituentDetailPage({
           <Row k="Last gift" v={fmtDate(ltv.lastGiftAt)} />
         </section>
       </div>
+
+      {/* Tasks for this constituent */}
+      <section style={{ ...card, marginTop: "1rem" }}>
+        <H>Tasks</H>
+        {tasks.length === 0 && <p style={{ color: "#999", fontSize: ".88rem", margin: "0 0 .5rem" }}>No tasks for this contact.</p>}
+        <div style={{ display: "grid", gap: ".35rem" }}>
+          {tasks.map((t) => <ConTaskRow key={t.id} t={t} conId={id} />)}
+        </div>
+        <form action={createTaskAction} style={{ display: "flex", gap: ".5rem", marginTop: ".75rem", flexWrap: "wrap" }}>
+          <input type="hidden" name="constituentId" value={id} />
+          <input type="hidden" name="next" value={`/app/constituents/${id}`} />
+          <input name="title" placeholder="Add a follow-up task" style={{ ...inp, flex: 1, minWidth: 200 }} required />
+          <input type="date" name="dueAt" style={inp} title="Due date" />
+          <select name="assignedTo" style={inp} title="Assign to">
+            <option value="">Unassigned</option>
+            {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name || m.email}</option>)}
+          </select>
+          <button type="submit" style={btn}>Add</button>
+        </form>
+      </section>
+
+      {/* Activity timeline (interactions) */}
+      <section style={{ ...card, marginTop: "1rem" }}>
+        <H>Activity</H>
+        <form action={logInteractionAction} style={{ display: "grid", gap: ".5rem", marginBottom: ".9rem", padding: ".75rem", border: "1px solid var(--app-border)", borderRadius: 9, background: "#fafbfa" }}>
+          <input type="hidden" name="id" value={id} />
+          <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+            <select name="type" style={inp} defaultValue="note">
+              {(["call", "meeting", "email", "text", "note", "mailing"] as const).map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input name="subject" placeholder="Subject (optional)" style={{ ...inp, flex: 1, minWidth: 180 }} />
+            <input type="date" name="occurredAt" style={inp} title="When it happened (defaults to now)" />
+          </div>
+          <textarea name="body" placeholder="What happened?" style={{ ...inp, minHeight: 56 }} />
+          <div><button type="submit" style={btn}>Log interaction</button></div>
+        </form>
+        {interactions.length === 0 ? <p style={{ color: "#999", fontSize: ".88rem", margin: 0 }}>No activity logged yet. Tidings emails, texts, and letters auto-log here.</p> : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {interactions.map((it) => <InteractionRow key={it.id} it={it} conId={id} />)}
+          </ul>
+        )}
+      </section>
 
       {/* Roles */}
       <section style={{ ...card, marginTop: "1rem" }}>
@@ -170,6 +222,56 @@ export default async function ConstituentDetailPage({
           </form>
         </section>
       )}
+    </div>
+  );
+}
+
+const INTERACTION_ICON: Record<Interaction["type"], string> = {
+  call: "📞", meeting: "🤝", email: "✉️", text: "💬", note: "📝", mailing: "📬",
+};
+
+function InteractionRow({ it, conId }: { it: Interaction; conId: string }) {
+  return (
+    <li style={{ display: "flex", gap: ".6rem", padding: ".55rem 0", borderTop: "1px solid #f1f2f1" }}>
+      <span style={{ fontSize: "1rem", lineHeight: 1.4 }} aria-hidden>{INTERACTION_ICON[it.type] ?? "•"}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: ".9rem" }}>
+          <strong style={{ textTransform: "capitalize" }}>{it.type}</strong>
+          {it.subject && <span> — {it.subject}</span>}
+          <span style={{ color: "#999", fontSize: ".8rem" }}> · {fmtDate(it.occurred_at)}</span>
+        </div>
+        {it.body && <p style={{ fontSize: ".85rem", color: "#555", margin: ".2rem 0 0", whiteSpace: "pre-wrap" }}>{it.body}</p>}
+      </div>
+      <form action={deleteInteractionAction}>
+        <input type="hidden" name="id" value={conId} />
+        <input type="hidden" name="interactionId" value={it.id} />
+        <button type="submit" style={linkBtn}>remove</button>
+      </form>
+    </li>
+  );
+}
+
+function ConTaskRow({ t, conId }: { t: Task; conId: string }) {
+  const isDone = t.status === "done";
+  const overdue = !isDone && t.due_at != null && new Date(t.due_at) < new Date(new Date().toDateString());
+  const next = `/app/constituents/${conId}`;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: ".5rem", fontSize: ".9rem" }}>
+      <form action={toggleTaskAction}>
+        <input type="hidden" name="taskId" value={t.id} />
+        <input type="hidden" name="status" value={isDone ? "open" : "done"} />
+        <input type="hidden" name="next" value={next} />
+        <button type="submit" title={isDone ? "Reopen" : "Mark done"} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid var(--brand)", background: isDone ? "var(--brand)" : "#fff", color: "#fff", cursor: "pointer", fontSize: ".7rem", lineHeight: 1, padding: 0 }}>{isDone ? "✓" : ""}</button>
+      </form>
+      <span style={{ flex: 1, textDecoration: isDone ? "line-through" : "none", color: isDone ? "#999" : "inherit" }}>
+        {t.title}
+        {t.due_at && <span style={{ color: overdue ? "#9b1c1c" : "#999", fontSize: ".8rem", fontWeight: overdue ? 600 : 400 }}> · {overdue ? "overdue " : "due "}{fmtDate(t.due_at)}</span>}
+      </span>
+      <form action={deleteTaskAction}>
+        <input type="hidden" name="taskId" value={t.id} />
+        <input type="hidden" name="next" value={next} />
+        <button type="submit" style={linkBtn}>delete</button>
+      </form>
     </div>
   );
 }

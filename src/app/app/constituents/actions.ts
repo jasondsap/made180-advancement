@@ -12,7 +12,10 @@ import {
 } from "@/repositories/constituents";
 import { addRole, removeRole } from "@/repositories/attributes";
 import { addRelationship, removeRelationship } from "@/repositories/relationships";
-import type { ConstituentType } from "@/types/db";
+import { createInteraction, deleteInteraction } from "@/repositories/interactions";
+import type { ConstituentType, InteractionType } from "@/types/db";
+
+const INTERACTION_TYPES: InteractionType[] = ["call", "email", "meeting", "note", "text", "mailing"];
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -144,6 +147,33 @@ export async function mergeAction(fd: FormData) {
   }
   revalidatePath("/app/constituents");
   redirect(`/app/constituents/${targetId}?msg=${msg}`);
+}
+
+export async function logInteractionAction(fd: FormData) {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  const id = str(fd, "id");
+  const typeRaw = str(fd, "type");
+  const type = (INTERACTION_TYPES as string[]).includes(typeRaw) ? (typeRaw as InteractionType) : "note";
+  const occurred = str(fd, "occurredAt");
+  await createInteraction(ctx.orgId, {
+    constituentId: id,
+    type,
+    subject: str(fd, "subject") || null,
+    body: str(fd, "body") || null,
+    occurredAt: occurred ? new Date(occurred) : null,
+    createdBy: ctx.user.id,
+  });
+  revalidatePath(`/app/constituents/${id}`);
+  redirect(`/app/constituents/${id}?msg=logged`);
+}
+
+export async function deleteInteractionAction(fd: FormData) {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  const id = str(fd, "id");
+  await deleteInteraction(ctx.orgId, str(fd, "interactionId"));
+  revalidatePath(`/app/constituents/${id}`);
 }
 
 async function resolveConstituent(orgId: string, key: string) {

@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { assertOrgId } from "@/lib/tenancy";
+import { getSegment, resolveSegmentRows } from "@/repositories/engage/segments";
 import type { Constituent } from "@/types/db";
 import type { AudienceSpec, EngageChannel } from "@/types/engage";
 
@@ -29,7 +30,11 @@ export async function resolveAudience(
   };
 
   let rows: Constituent[];
-  if (spec.mode === "manual" && spec.constituentIds?.length) {
+  if (spec.mode === "segment" && spec.segmentId) {
+    // Dynamic: re-evaluate the saved segment's criteria against live data now.
+    const segment = await getSegment(orgId, spec.segmentId);
+    rows = segment ? await resolveSegmentRows(orgId, segment.criteria_json) : [];
+  } else if (spec.mode === "manual" && spec.constituentIds?.length) {
     rows = (await sql`
       SELECT * FROM constituents
       WHERE org_id = ${orgId} AND id = ANY(${spec.constituentIds}::uuid[])

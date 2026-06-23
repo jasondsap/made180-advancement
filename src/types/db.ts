@@ -216,6 +216,44 @@ export interface RecurringPlan {
   created_at: Date;
 }
 
+export type InteractionType = "call" | "email" | "meeting" | "note" | "text" | "mailing";
+
+export interface Interaction {
+  id: string;
+  org_id: string;
+  constituent_id: string;
+  type: InteractionType;
+  subject: string | null;
+  body: string | null;
+  occurred_at: Date;
+  created_by: string | null;
+  created_at: Date;
+}
+
+export type TaskStatus = "open" | "done";
+
+export interface Task {
+  id: string;
+  org_id: string;
+  constituent_id: string | null;
+  title: string;
+  notes: string | null;
+  due_at: Date | null;
+  status: TaskStatus;
+  assigned_to: string | null;
+  completed_at: Date | null;
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/** Task joined with constituent + assignee display fields (for the Tasks list). */
+export interface TaskWithRefs extends Task {
+  constituent_name: string | null;
+  assignee_name: string | null;
+  assignee_email: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Inputs
 // ---------------------------------------------------------------------------

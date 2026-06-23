@@ -3,22 +3,25 @@
 import { useState, type CSSProperties } from "react";
 
 type FundOption = { id: string; name: string };
+type SegmentOption = { id: string; name: string };
 
 /** Letter composer for printable mailings. Save as draft, or generate the merged PDF. */
 export function MailingComposer({
   messageId,
   defaults,
   funds,
+  segments,
   saveDraftAction,
   generateAction,
 }: {
   messageId?: string;
   defaults?: { name?: string; body?: string };
   funds: FundOption[];
+  segments: SegmentOption[];
   saveDraftAction: (fd: FormData) => void | Promise<void>;
   generateAction: (fd: FormData) => void | Promise<void>;
 }) {
-  const [mode, setMode] = useState<"all" | "fund">("all");
+  const [mode, setMode] = useState<"all" | "fund" | "segment">("all");
 
   return (
     <form style={{ display: "grid", gap: "1rem", maxWidth: 720 }}>
@@ -42,6 +45,12 @@ export function MailingComposer({
         {mode === "fund" && (
           <select name="fundId" style={inp}>
             {funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        )}
+        <label style={radio}><input type="radio" name="audienceMode" value="segment" checked={mode === "segment"} onChange={() => setMode("segment")} disabled={segments.length === 0} /> Saved segment {segments.length === 0 && <span style={{ color: "#aaa", fontSize: ".8rem" }}>(none yet — create one in Settings → Segments)</span>}</label>
+        {mode === "segment" && segments.length > 0 && (
+          <select name="segmentId" style={inp}>
+            {segments.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         )}
         <p style={{ fontSize: ".78rem", color: "#888", margin: 0 }}>Contacts without a mailing address, or marked do-not-contact, are excluded.</p>

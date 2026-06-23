@@ -5,6 +5,7 @@ import { getMessage, setMessageStatus } from "@/repositories/engage/messages";
 import { listMergeFields } from "@/repositories/engage/mergeFields";
 import { resolveAudience } from "@/repositories/engage/audience";
 import { bulkInsertRecipients, listQueued, setRecipientSent, setRecipientFailed } from "@/repositories/engage/recipients";
+import { bulkLogInteractions } from "@/repositories/interactions";
 import type { AudienceSpec } from "@/types/engage";
 
 /** Footer appended to the first message to a contact (TCPA opt-out reminder). */
@@ -41,6 +42,7 @@ export async function sendSmsMessage(
 
   let sent = 0;
   let failed = 0;
+  const sentConstituentIds: string[] = [];
   for (const r of queued) {
     const c = r.constituent_id ? byId.get(r.constituent_id) : undefined;
     if (!c || !r.to_phone) {
@@ -53,11 +55,18 @@ export async function sendSmsMessage(
       const { sid } = await sendSms({ to: r.to_phone, body, statusCallback });
       await setRecipientSent(orgId, r.id, sid);
       sent++;
+      sentConstituentIds.push(c.id);
     } catch (e) {
       await setRecipientFailed(orgId, r.id, e instanceof Error ? e.message : "send error");
       failed++;
     }
   }
+
+  // Auto-log each delivered text onto the constituent timeline (best-effort).
+  await bulkLogInteractions(
+    orgId,
+    sentConstituentIds.map((cid) => ({ constituentId: cid, type: "text", subject: message.name })),
+  ).catch(() => {});
 
   await setMessageStatus(orgId, messageId, sent > 0 || queued.length === 0 ? "sent" : "failed", {
     recipientCount: queued.length,

@@ -5,6 +5,7 @@ import { getAuthContext, canManage } from "@/lib/auth";
 import { getMessage } from "@/repositories/engage/messages";
 import { listRecipients } from "@/repositories/engage/recipients";
 import { listFunds } from "@/repositories/funds";
+import { listSegments } from "@/repositories/engage/segments";
 import { MailingComposer } from "../MailingComposer";
 import { saveMailingDraftAction, generateMailingAction, deleteMailingAction } from "../../actions";
 
@@ -26,7 +27,10 @@ export default async function MailingPage({
   if (!message || message.channel !== "mail") notFound();
 
   if (message.status === "draft" && canManage(ctx.role)) {
-    const funds = await listFunds(ctx.orgId, { activeOnly: true });
+    const [funds, segments] = await Promise.all([
+      listFunds(ctx.orgId, { activeOnly: true }),
+      listSegments(ctx.orgId),
+    ]);
     return (
       <div>
         <Back />
@@ -35,6 +39,7 @@ export default async function MailingPage({
           messageId={message.id}
           defaults={{ name: message.name, body: message.body_md ?? "" }}
           funds={funds.map((f) => ({ id: f.id, name: f.name }))}
+          segments={segments.map((s) => ({ id: s.id, name: s.name }))}
           saveDraftAction={saveMailingDraftAction}
           generateAction={generateMailingAction}
         />
@@ -55,9 +60,17 @@ export default async function MailingPage({
       <p style={{ color: "#7a7367", fontSize: ".9rem", margin: "0 0 1rem" }}>Generated {message.sent_at ? new Date(message.sent_at).toLocaleDateString() : ""} · {recipients.length} letter(s).</p>
       {msg === "generated" && <div style={{ background: "#edf1ec", color: "var(--forest)", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Letters generated. Download the print-ready PDF below.</div>}
 
-      <a href={`/api/tidings/mailings/${message.id}/pdf`} style={{ display: "inline-block", padding: ".6rem 1.2rem", borderRadius: 8, background: "var(--brand)", color: "#fff", textDecoration: "none", fontWeight: 600 }}>
-        Download letters (PDF)
-      </a>
+      <div style={{ display: "flex", gap: ".6rem", flexWrap: "wrap" }}>
+        <a href={`/api/tidings/mailings/${message.id}/pdf`} style={{ display: "inline-block", padding: ".6rem 1.2rem", borderRadius: 8, background: "var(--brand)", color: "#fff", textDecoration: "none", fontWeight: 600 }}>
+          Download letters (PDF)
+        </a>
+        <a href={`/api/tidings/mailings/${message.id}/pdf?format=labels`} style={{ display: "inline-block", padding: ".6rem 1.2rem", borderRadius: 8, background: "#fff", color: "var(--brand)", border: "1px solid var(--brand)", textDecoration: "none", fontWeight: 600 }}>
+          Labels (Avery 5160)
+        </a>
+        <a href={`/api/tidings/mailings/${message.id}/pdf?format=envelopes`} style={{ display: "inline-block", padding: ".6rem 1.2rem", borderRadius: 8, background: "#fff", color: "var(--brand)", border: "1px solid var(--brand)", textDecoration: "none", fontWeight: 600 }}>
+          Envelopes (#10)
+        </a>
+      </div>
 
       <div style={{ marginTop: "1.5rem", border: "1px solid var(--app-border)", borderRadius: 10, padding: "1rem", background: "#fff", maxWidth: 560 }}>
         <h3 style={{ fontSize: ".95rem", margin: "0 0 .5rem" }}>Letter body</h3>

@@ -1,5 +1,7 @@
 /** Engage module row + input shapes. Mirror migrations/0007_engage.sql. */
 
+import type { ConstituentType } from "@/types/db";
+
 export type EngageChannel = "email" | "sms" | "mail";
 export type MessageStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 export type RecipientStatus =
@@ -87,10 +89,36 @@ export interface EngageRecipient {
  * always applied (do_not_contact, plus channel opt-out/opt-in).
  */
 export interface AudienceSpec {
-  /** "all" reachable constituents, or an explicit id list. */
-  mode: "all" | "fund" | "manual";
+  /** "all" reachable constituents, a fund's donors, an explicit id list, or a saved segment. */
+  mode: "all" | "fund" | "manual" | "segment";
   fundId?: string | null;      // gave to this fund (any time)
   constituentIds?: string[];   // mode: "manual"
+  segmentId?: string | null;   // mode: "segment" — resolved dynamically against engage_segments
+}
+
+/**
+ * Reusable, dynamic audience criteria stored on an engage_segment. Every field is
+ * optional and ANDed together; an empty spec matches all constituents. Gift-based
+ * filters consider only succeeded gifts. Re-evaluated against live data each send.
+ */
+export interface SegmentCriteria {
+  fundIds?: string[];          // has a succeeded gift to ANY of these funds
+  givingMinCents?: number;     // lifetime succeeded-gift total >= this
+  givingMaxCents?: number;     // lifetime succeeded-gift total <= this
+  giftSince?: string;          // ISO date — has a succeeded gift on/after
+  giftUntil?: string;          // ISO date — has a succeeded gift on/before
+  constituentType?: ConstituentType; // individual | organization
+}
+
+export interface EngageSegment {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string | null;
+  criteria_json: SegmentCriteria;
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
 /** Per-message aggregate stats derived from engage_recipients. */

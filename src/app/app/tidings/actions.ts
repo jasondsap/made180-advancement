@@ -11,9 +11,12 @@ import { createMergeField, updateMergeFieldDefault, deleteMergeField } from "@/r
 import { createMessage, updateMessage, getMessage, deleteMessage, setMessageStatus } from "@/repositories/engage/messages";
 import { resolveAudience } from "@/repositories/engage/audience";
 import { bulkInsertRecipients } from "@/repositories/engage/recipients";
+import { createSegment, updateSegment, deleteSegment } from "@/repositories/engage/segments";
+import { bulkLogInteractions } from "@/repositories/interactions";
 import { sendEmailMessage } from "@/domain/engage/send";
 import { sendSmsMessage } from "@/domain/engage/sendSms";
-import type { AudienceSpec, AddressType, EngageDomain } from "@/types/engage";
+import type { AudienceSpec, AddressType, EngageDomain, SegmentCriteria } from "@/types/engage";
+import type { ConstituentType } from "@/types/db";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
@@ -27,6 +30,7 @@ async function requireManager() {
 function buildAudience(fd: FormData): AudienceSpec {
   const mode = str(fd, "audienceMode");
   if (mode === "fund" && str(fd, "fundId")) return { mode: "fund", fundId: str(fd, "fundId") };
+  if (mode === "segment" && str(fd, "segmentId")) return { mode: "segment", segmentId: str(fd, "segmentId") };
   if (mode === "manual") {
     const ids = String(fd.get("constituentIds") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     return { mode: "manual", constituentIds: ids };
@@ -290,6 +294,11 @@ export async function generateMailingAction(fd: FormData) {
   const audience = buildAudience(fd);
   const recipients = await resolveAudience(ctx.orgId, audience, "mail");
   await bulkInsertRecipients(ctx.orgId, id, recipients.map((c) => ({ constituentId: c.id })));
+  // Auto-log the letter onto each recipient's timeline (best-effort).
+  await bulkLogInteractions(
+    ctx.orgId,
+    recipients.map((c) => ({ constituentId: c.id, type: "mailing" as const, subject: fields.name })),
+  ).catch(() => {});
   await setMessageStatus(ctx.orgId, id, "sent", { recipientCount: recipients.length, sentAt: new Date() });
   revalidatePath("/app/tidings/mailings");
   redirect(`/app/tidings/mailings/${id}?msg=generated`);
@@ -300,4 +309,68 @@ export async function deleteMailingAction(fd: FormData) {
   await deleteMessage(ctx.orgId, str(fd, "id"));
   revalidatePath("/app/tidings/mailings");
   redirect("/app/tidings/mailings?tab=drafts");
+}
+
+// ---------- Saved segments (reusable, dynamic audiences) ----------
+
+/** Dollar string → integer cents, or undefined if blank/invalid. */
+function dollarsToCents(raw: string): number | undefined {
+  const v = raw.trim();
+  if (!v) return undefined;
+  const n = Number(v.replace(/[$,]/g, ""));
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return Math.round(n * 100);
+}
+
+/** Parse the criteria-builder form into a SegmentCriteria, dropping empty fields. */
+function buildCriteria(fd: FormData): SegmentCriteria {
+  const criteria: SegmentCriteria = {};
+  const fundIds = fd.getAll("fundIds").map((v) => String(v).trim()).filter(Boolean);
+  if (fundIds.length) criteria.fundIds = fundIds;
+  const min = dollarsToCents(str(fd, "givingMin"));
+  if (min !== undefined) criteria.givingMinCents = min;
+  const max = dollarsToCents(str(fd, "givingMax"));
+  if (max !== undefined) criteria.givingMaxCents = max;
+  const since = str(fd, "giftSince");
+  if (since) criteria.giftSince = since;
+  const until = str(fd, "giftUntil");
+  if (until) criteria.giftUntil = until;
+  const type = str(fd, "constituentType");
+  if (type === "individual" || type === "organization") criteria.constituentType = type as ConstituentType;
+  return criteria;
+}
+
+export async function createSegmentAction(fd: FormData) {
+  const ctx = await requireManager();
+  const name = str(fd, "name");
+  if (!name) throw new Error("Segment name is required");
+  await createSegment(ctx.orgId, {
+    name,
+    description: str(fd, "description") || null,
+    criteria: buildCriteria(fd),
+    createdBy: ctx.user.id,
+  });
+  revalidatePath("/app/tidings/settings/segments");
+  redirect("/app/tidings/settings/segments?msg=saved");
+}
+
+export async function updateSegmentAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  const name = str(fd, "name");
+  if (!id || !name) throw new Error("Segment id and name are required");
+  await updateSegment(ctx.orgId, id, {
+    name,
+    description: str(fd, "description") || null,
+    criteria: buildCriteria(fd),
+  });
+  revalidatePath("/app/tidings/settings/segments");
+  redirect("/app/tidings/settings/segments?msg=saved");
+}
+
+export async function deleteSegmentAction(fd: FormData) {
+  const ctx = await requireManager();
+  await deleteSegment(ctx.orgId, str(fd, "id"));
+  revalidatePath("/app/tidings/settings/segments");
+  redirect("/app/tidings/settings/segments");
 }

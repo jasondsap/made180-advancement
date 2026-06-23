@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { flags } from "@/lib/featureFlags";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { listFunds } from "@/repositories/funds";
+import { listSegments } from "@/repositories/engage/segments";
 import { MailingComposer } from "../MailingComposer";
 import { saveMailingDraftAction, generateMailingAction } from "../../actions";
 
@@ -13,7 +14,10 @@ export default async function NewMailingPage() {
   const ctx = await getAuthContext();
   if (!ctx) return null;
   if (!canManage(ctx.role)) return <p style={{ color: "#999" }}>Creating mailings requires an admin role.</p>;
-  const funds = await listFunds(ctx.orgId, { activeOnly: true });
+  const [funds, segments] = await Promise.all([
+    listFunds(ctx.orgId, { activeOnly: true }),
+    listSegments(ctx.orgId),
+  ]);
 
   return (
     <div>
@@ -23,6 +27,7 @@ export default async function NewMailingPage() {
       <h2 style={{ fontSize: "1.25rem", margin: "0 0 1rem" }}>New mailing</h2>
       <MailingComposer
         funds={funds.map((f) => ({ id: f.id, name: f.name }))}
+        segments={segments.map((s) => ({ id: s.id, name: s.name }))}
         saveDraftAction={saveMailingDraftAction}
         generateAction={generateMailingAction}
       />

@@ -15,6 +15,7 @@ export function SettingsNav({
     { label: "Branding", href: "/app/tidings/settings/branding", complete: true },
     { label: "Addresses", href: "/app/tidings/settings/addresses", complete: status.addresses },
     { label: "Merge Fields", href: "/app/tidings/settings/merge-fields", complete: true },
+    { label: "Segments", href: "/app/tidings/settings/segments", complete: true },
   ];
   return (
     <aside style={{ width: 220, flexShrink: 0 }}>
