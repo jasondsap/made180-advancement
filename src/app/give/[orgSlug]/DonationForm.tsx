@@ -19,6 +19,7 @@ export function DonationForm({
   appealName,
   fundraiserSlug,
   p2pMemberSlug,
+  campaignSlug,
 }: {
   orgSlug: string;
   funds: FundOption[];
@@ -29,6 +30,8 @@ export function DonationForm({
   fundraiserSlug?: string | null;
   /** When set, the gift is also credited to this peer-to-peer member. */
   p2pMemberSlug?: string | null;
+  /** When set, the gift attributes to this campaign (public campaign page). */
+  campaignSlug?: string | null;
 }) {
   const [frequency, setFrequency] = useState<Frequency>("monthly"); // monthly pre-selected (spec)
   const [fundCode, setFundCode] = useState<string>(funds[0]?.code ?? "general");
@@ -49,6 +52,7 @@ export function DonationForm({
   const [tributeName, setTributeName] = useState("");
   const [employer, setEmployer] = useState("");
   const [coverFees, setCoverFees] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +87,7 @@ export function DonationForm({
           fundCode,
           fundraiserSlug: fundraiserSlug ?? undefined,
           p2pMemberSlug: p2pMemberSlug ?? undefined,
+          campaignSlug: campaignSlug ?? undefined,
           frequency,
           amountCents,
           donor: {
@@ -96,6 +101,7 @@ export function DonationForm({
           employer: employer || null,
           coverFees,
           appealId: appealId ?? null,
+          isAnonymous,
         }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
@@ -208,6 +214,12 @@ export function DonationForm({
           </div>
         )}
         <input style={{ ...styles.input, marginTop: ".75rem" }} placeholder="Employer (for matching gifts)" value={employer} onChange={(e) => setEmployer(e.target.value)} />
+        <label style={{ ...styles.checkRow, marginTop: ".75rem" }}>
+          <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
+          <span>
+            Make my gift anonymous — don&apos;t show my name on donor walls (you&apos;ll still receive your receipt)
+          </span>
+        </label>
         <label style={{ ...styles.checkRow, marginTop: ".75rem" }}>
           <input type="checkbox" checked={coverFees} onChange={(e) => setCoverFees(e.target.checked)} />
           <span>

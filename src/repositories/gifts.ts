@@ -25,7 +25,7 @@ export async function insertGift(
       stripe_payment_intent_id, stripe_customer_id, stripe_subscription_id,
       stripe_invoice_id, card_last4,
       tribute_type, tribute_name, soft_credit_id,
-      fee_cents, net_cents, benefit_fmv_cents, benefit_description, notes
+      fee_cents, net_cents, benefit_fmv_cents, benefit_description, is_anonymous, notes
     ) VALUES (
       ${orgId},
       ${input.constituentId},
@@ -52,6 +52,7 @@ export async function insertGift(
       ${input.netCents ?? null},
       ${input.benefitFmvCents ?? null},
       ${input.benefitDescription ?? null},
+      ${input.isAnonymous ?? false},
       ${input.notes ?? null}
     )
     ON CONFLICT DO NOTHING
@@ -142,6 +143,8 @@ export async function listGifts(
 
 export interface GiftFilters {
   fundId?: string | null;
+  campaignId?: string | null;
+  appealId?: string | null;
   giftType?: string | null;
   status?: string | null;
   dateFrom?: string | null; // 'YYYY-MM-DD'
@@ -180,6 +183,8 @@ export async function listGiftsFiltered(orgId: string, f: GiftFilters): Promise<
     LEFT JOIN funds f ON f.id = g.fund_id
     WHERE g.org_id = ${orgId}
       AND (${f.fundId ?? null}::uuid IS NULL OR g.fund_id = ${f.fundId ?? null})
+      AND (${f.campaignId ?? null}::uuid IS NULL OR g.campaign_id = ${f.campaignId ?? null})
+      AND (${f.appealId ?? null}::uuid IS NULL OR g.appeal_id = ${f.appealId ?? null})
       AND (${f.giftType ?? null}::text IS NULL OR g.gift_type = ${f.giftType ?? null})
       AND (${f.status ?? null}::text IS NULL OR g.status = ${f.status ?? null})
       AND (${f.dateFrom ?? null}::date IS NULL OR g.received_at >= ${f.dateFrom ?? null}::date)
@@ -225,6 +230,8 @@ export async function countGiftsFiltered(orgId: string, f: GiftFilters): Promise
     JOIN constituents c ON c.id = g.constituent_id
     WHERE g.org_id = ${orgId}
       AND (${f.fundId ?? null}::uuid IS NULL OR g.fund_id = ${f.fundId ?? null})
+      AND (${f.campaignId ?? null}::uuid IS NULL OR g.campaign_id = ${f.campaignId ?? null})
+      AND (${f.appealId ?? null}::uuid IS NULL OR g.appeal_id = ${f.appealId ?? null})
       AND (${f.giftType ?? null}::text IS NULL OR g.gift_type = ${f.giftType ?? null})
       AND (${f.status ?? null}::text IS NULL OR g.status = ${f.status ?? null})
       AND (${f.dateFrom ?? null}::date IS NULL OR g.received_at >= ${f.dateFrom ?? null}::date)

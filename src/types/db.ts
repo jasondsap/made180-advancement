@@ -196,6 +196,7 @@ export interface Gift {
   net_cents: number | null;
   benefit_fmv_cents: number | null;
   benefit_description: string | null;
+  is_anonymous: boolean;
   receipt_sent_at: Date | null;
   receipt_number: string | null;
   notes: string | null;
@@ -294,5 +295,6 @@ export interface InsertGiftInput {
   netCents?: number | null;
   benefitFmvCents?: number | null;
   benefitDescription?: string | null;
+  isAnonymous?: boolean;
   notes?: string | null;
 }

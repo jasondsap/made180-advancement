@@ -87,6 +87,15 @@ export async function setMessageStatus(
   `;
 }
 
+/** Link a message to the appeal it promotes (campaign Asks flow). */
+export async function setMessageAppeal(orgId: string, id: string, appealId: string): Promise<void> {
+  assertOrgId(orgId);
+  await sql`
+    UPDATE engage_messages SET appeal_id = ${appealId}
+    WHERE org_id = ${orgId} AND id = ${id}
+  `;
+}
+
 export async function deleteMessage(orgId: string, id: string): Promise<void> {
   assertOrgId(orgId);
   await sql`DELETE FROM engage_messages WHERE org_id = ${orgId} AND id = ${id} AND status = 'draft'`;

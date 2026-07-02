@@ -178,6 +178,7 @@ async function handleOneTimeSession(stripe: Stripe, session: Stripe.Checkout.Ses
     p2pMemberId: m.p2p_member_id || null,
     tributeType: asTribute(m.tribute_type),
     tributeName: m.tribute_name || null,
+    isAnonymous: m.is_anonymous === "true",
   });
 }
 
@@ -206,6 +207,7 @@ async function handleOneTimePaymentIntent(stripe: Stripe, pi: Stripe.PaymentInte
     p2pMemberId: m.p2p_member_id || null,
     tributeType: asTribute(m.tribute_type),
     tributeName: m.tribute_name || null,
+    isAnonymous: m.is_anonymous === "true",
   });
 }
 
@@ -225,6 +227,7 @@ type OneTimeInput = {
   p2pMemberId: string | null;
   tributeType: TributeType | null;
   tributeName: string | null;
+  isAnonymous: boolean;
 };
 
 async function recordOneTimeGift(stripe: Stripe, input: OneTimeInput) {
@@ -254,6 +257,7 @@ async function recordOneTimeGift(stripe: Stripe, input: OneTimeInput) {
     cardLast4: null,
     tributeType: input.tributeType,
     tributeName: input.tributeName,
+    isAnonymous: input.isAnonymous,
     feeCents,
     netCents,
   });
@@ -407,6 +411,7 @@ async function handleRecurringInvoice(stripe: Stripe, invoice: InvoiceLoose, eve
     stripeCustomerId: idOf(invoice.customer),
     tributeType: asTribute(subMeta.tribute_type),
     tributeName: subMeta.tribute_name || null,
+    isAnonymous: subMeta.is_anonymous === "true",
     feeCents,
     netCents,
   });

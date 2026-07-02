@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { upsertConstituentByEmail, createConstituent } from "@/repositories/constituents";
 import { insertGift, getGiftById, markRefunded } from "@/repositories/gifts";
+import { getAppealById } from "@/repositories/appeals";
 import { issueReceipt } from "@/domain/receipts";
 import { getStripe } from "@/lib/stripe";
 import type { GiftType, GiftStatus, AddressJson } from "@/types/db";
@@ -35,6 +36,8 @@ export async function createManualGift(formData: FormData) {
   const lastName = str(formData, "lastName") || null;
   const orgName = str(formData, "orgName") || null;
   const fundId = str(formData, "fundId") || null;
+  const appealId = str(formData, "appealId") || null;
+  let campaignId = str(formData, "campaignId") || null;
   const notes = str(formData, "notes") || null;
   const receivedAtRaw = str(formData, "receivedAt");
   const sendReceipt = formData.get("sendReceipt") === "on";
@@ -56,11 +59,21 @@ export async function createManualGift(formData: FormData) {
       constituentId = con.id;
     }
 
+    // Attribution: an appeal implies its campaign when none was chosen
+    // (mirrors the checkout rule).
+    if (appealId) {
+      const appeal = await getAppealById(orgId, appealId);
+      if (!appeal) throw new Error("invalid appeal");
+      if (!campaignId) campaignId = appeal.campaign_id;
+    }
+
     const benefitDollars = parseFloat(str(formData, "benefitFmv"));
     const benefitFmvCents = Number.isFinite(benefitDollars) && benefitDollars > 0 ? Math.round(benefitDollars * 100) : null;
     const { gift } = await insertGift(orgId, {
       constituentId,
       fundId,
+      campaignId,
+      appealId,
       giftType,
       amountCents,
       status,

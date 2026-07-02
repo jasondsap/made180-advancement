@@ -60,6 +60,7 @@ export interface EngageMessage {
   body_md: string | null;
   sender_id: string | null;
   audience_json: AudienceSpec | null;
+  appeal_id: string | null;
   recipient_count: number;
   status: MessageStatus;
   scheduled_at: Date | null;

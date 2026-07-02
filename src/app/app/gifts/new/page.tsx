@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getAuthContext } from "@/lib/auth";
 import { listFunds } from "@/repositories/funds";
+import { listCampaigns } from "@/repositories/campaigns";
+import { listAppeals } from "@/repositories/appeals";
 import { createManualGift } from "../actions";
 
 /**
@@ -25,7 +27,11 @@ export default async function NewGiftPage({
   const ctx = await getAuthContext();
   if (!ctx) return null;
   const { error } = await searchParams;
-  const funds = await listFunds(ctx.orgId, { activeOnly: true });
+  const [funds, campaigns, appeals] = await Promise.all([
+    listFunds(ctx.orgId, { activeOnly: true }),
+    listCampaigns(ctx.orgId),
+    listAppeals(ctx.orgId),
+  ]);
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -65,6 +71,24 @@ export default async function NewGiftPage({
               {funds.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </Field>
+          <Row>
+            <Field label="Campaign (attribution)">
+              <select name="campaignId" style={inp}>
+                <option value="">— None —</option>
+                {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Appeal (implies its campaign)">
+              <select name="appealId" style={inp}>
+                <option value="">— None —</option>
+                {appeals.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}{a.campaign_name ? ` — ${a.campaign_name}` : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </Row>
           <Field label="Notes (e.g. check #, stock shares, matched gift)">
             <input name="notes" style={inp} placeholder="Optional" />
           </Field>

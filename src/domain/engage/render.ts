@@ -31,9 +31,12 @@ export function renderMergeTags(template: string, c: Constituent, mergeFields: E
   return template.replace(/\{\{[^}]+\}\}/g, (tag) => builtin[tag] ?? defaults.get(tag) ?? "");
 }
 
-/** Minimal plaintext/markdown → safe HTML: escape, **bold**, newline → <br>. */
+/** Minimal plaintext/markdown → safe HTML: escape, [link](url), **bold**, newline → <br>. */
 function bodyToHtml(text: string): string {
   return esc(text)
+    // Input is already HTML-escaped, so the captured URL can't break out of the
+    // attribute. http(s) only — no javascript: URLs.
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\r?\n/g, "<br>");
 }

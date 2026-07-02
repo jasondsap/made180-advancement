@@ -51,7 +51,10 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   addresses/merge_fields/messages/recipients + constituent consent cols) ·
   0008 fundraisers (+ gifts.fundraiser_id) · 0009 events (ticket_types,
   registrants) · 0010 p2p+auction (p2p_members + gifts.p2p_member_id,
-  auction_items, auction_bids). Runner: `scripts/migrate.ts`
+  auction_items, auction_bids) · 0011 engage_segments · 0012 interactions+tasks ·
+  0013 campaigns (campaign description/category/cover/public_slug, appeal
+  ask_amount/sent_on, gifts.is_anonymous, engage_messages.appeal_id, attribution
+  indexes). Runner: `scripts/migrate.ts`
   (`DATABASE_URL_UNPOOLED`; checksums applied files).
 - `src/lib/` — `env.ts` (all-optional literal reads + `requireEnv`; build-safe),
   `db.ts`, `tenancy.ts`, `stripe.ts`, `auth.ts`, `auth-options.ts`, `email.ts`
@@ -62,23 +65,33 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
 - `src/repositories/` — orgs, constituents, gifts, funds, campaigns, appeals,
   pledges, recurringPlans, webhookEvents, users, attributes, relationships,
   analytics, reports, **fundraisers, ticketTypes, registrants, p2pMembers,
-  auctions**, and **engage/** (domains, senders, addresses, mergeFields,
-  messages, recipients, audience). All `orgId`-scoped (+ documented exceptions).
+  auctions**, **campaignStats** (summary/sources/cumulative/appeal-perf/top
+  donors/donor wall), **campaignSegments** (campaign-relative LYBUNT/SYBUNT/
+  first-time/lapsed/recurring resolvers), and **engage/** (domains, senders,
+  addresses, mergeFields, messages, recipients, audience, segments). All
+  `orgId`-scoped (+ documented exceptions).
 - `src/domain/` — fees, receiptPdf, receipts, yearEndPdf, quickbooksCsv,
-  assistant, and **engage/** (render, send, sendSms, mailingPdf).
+  assistant, **campaignAsks** (AI appeal drafting), **campaignReportPdf**
+  (board report), and **engage/** (render, send, sendSms, mailingPdf).
 - `src/components/` — `ArchMark` (logo), `OrgSwitcher`, `SignOutButton`,
   `ui/` (DataTable, EmptyState, Badge, SubTabs), `tidings/` (TidingsTabs, SettingsNav).
 - `src/app/give/[orgSlug]/` — default donation page; `[fundraiserSlug]/` themed
-  fundraiser/event page; `[fundraiserSlug]/p/[memberSlug]/` peer-to-peer page.
+  fundraiser/event page; `[fundraiserSlug]/p/[memberSlug]/` peer-to-peer page;
+  `c/[campaignSlug]/` public campaign page (thermometer + donor wall; exists only
+  when `campaigns.public_slug` set AND active; the static `c` segment shadows a
+  fundraiser slugged literally "c").
 - `src/app/u/[token]/` — public unsubscribe.
 - `src/app/api/` — checkout, events/checkout, stripe/webhook, auth/[...nextauth],
-  auth/cognito-logout, assistant/{query,thank-you}, export/quickbooks,
+  auth/cognito-logout, assistant/{query,thank-you,appeal-draft}, export/quickbooks,
   year-end/[constituentId], fundraisers/export, p2p/join, auction/bid,
+  campaigns/segment-preview, campaigns/[id]/report (board PDF),
   tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf.
 - `src/app/app/` — admin (force-dynamic): dashboard, gifts, constituents, pledges,
-  reports, funds, campaigns, **fundraisers** (+ [id]/edit, /registrants, /members,
-  /new wizard), **tidings** (email/texts/mailings/settings — donor messaging),
-  assistant, settings, **admin/orgs** (super_admin console).
+  reports, funds, **campaigns** (card list + /new + [id] detail with
+  Overview/Appeals/Asks/Gifts/Report tabs + [id]/edit), **fundraisers**
+  (+ [id]/edit, /registrants, /members, /new wizard), **tidings**
+  (email/texts/mailings/settings — donor messaging), assistant, settings,
+  **admin/orgs** (super_admin console).
 - `middleware.ts` — NextAuth `withAuth` gate on `/app/*`.
 
 ## Auth, roles & org switching
@@ -176,9 +189,14 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 Shipped: Almonry rebrand; super_admin org console + Stripe Connect onboarding +
 membership management + org switcher; per-tenant branding; Tidings (donor
 messaging: email, SMS, mailings); Fundraisers (donation forms/pages, events,
-peer-to-peer, auction).
+peer-to-peer, auction); Campaigns module (detail dashboard w/ thermometer +
+source breakdown + cumulative chart, appeal performance + CRUD, segmented Asks
+with AI-drafted appeals sent via Tidings + tracked back via
+engage_messages.appeal_id, board-ready PDF report w/ YoY, public campaign pages
+w/ donor wall, anonymous giving end-to-end, campaign/appeal attribution on
+manual gift entry).
 Phase-1 CRM (dashboard/gifts/constituents+merge/funds/campaigns/pledges/reports/
-QuickBooks export/Dori assistant/receipts) intact. 10 migrations applied.
+QuickBooks export/Dori assistant/receipts) intact. 13 migrations applied.
 
 ## Deploy: AWS Amplify
 See `amplify.yml`: push to Git, connect in Amplify (Next.js SSR auto-detected),

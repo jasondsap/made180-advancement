@@ -18,3 +18,16 @@ export function fmtDate(d: Date | string | null): string {
 export function fmtNumber(v: number): string {
   return v.toLocaleString("en-US");
 }
+
+/**
+ * 'YYYY-MM-DD' from a Date or date-ish string. pg returns `date` columns as JS
+ * Dates (local midnight), so format by local calendar parts — never toISOString,
+ * which can shift a day across timezones.
+ */
+export function isoDay(d: Date | string | null | undefined): string | null {
+  if (!d) return null;
+  if (d instanceof Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  return String(d).slice(0, 10);
+}

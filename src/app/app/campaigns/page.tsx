@@ -1,96 +1,80 @@
+import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { listCampaigns } from "@/repositories/campaigns";
-import { listAppeals, APPEAL_CHANNELS } from "@/repositories/appeals";
-import { getOrgById } from "@/repositories/orgs";
-import { usd } from "@/lib/format";
-import { createCampaignAction, updateCampaignAction, createAppealAction } from "../settings/actions";
-import { env } from "@/lib/env";
+import { campaignRaisedTotals } from "@/repositories/campaignStats";
+import { usd, fmtNumber, fmtDate } from "@/lib/format";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { CATEGORY_LABELS, daysRemaining } from "./CampaignHeader";
 
 export default async function CampaignsPage() {
   const ctx = await getAuthContext();
   if (!ctx) return null;
   const manage = canManage(ctx.role);
-  const [campaigns, appeals, org] = await Promise.all([
+  const [campaigns, totals] = await Promise.all([
     listCampaigns(ctx.orgId),
-    listAppeals(ctx.orgId),
-    getOrgById(ctx.orgId),
+    campaignRaisedTotals(ctx.orgId),
   ]);
-  const base = (env().APP_BASE_URL ?? "").replace(/\/$/, "");
+  const totalsById = new Map(totals.map((t) => [t.campaignId, t]));
 
   return (
-    <div style={{ maxWidth: 820 }}>
-      <h1 style={{ fontSize: "1.5rem" }}>Campaigns & appeals</h1>
-
-      <h2 style={h2}>Campaigns</h2>
-      <div style={cardWrap}>
-        {campaigns.length === 0 && <p style={muted}>No campaigns yet.</p>}
-        {campaigns.map((c) => (
-          <div key={c.id} style={{ borderTop: "1px solid #f1f2f1", padding: ".6rem .8rem" }}>
-            {manage ? (
-              <form action={updateCampaignAction} style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
-                <input type="hidden" name="id" value={c.id} />
-                <input name="name" defaultValue={c.name} style={{ ...inp, flex: 1, minWidth: 160 }} />
-                <span style={muted}>Goal $</span>
-                <input name="goal" defaultValue={c.goal_cents ? (c.goal_cents / 100).toString() : ""} style={{ ...inp, width: 100 }} placeholder="—" />
-                <label style={{ fontSize: ".85rem", display: "flex", gap: ".3rem", alignItems: "center" }}><input type="checkbox" name="active" defaultChecked={c.active} /> Active</label>
-                <button type="submit" style={btn}>Save</button>
-              </form>
-            ) : (
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>{c.name}</span><span style={muted}>{c.goal_cents ? `Goal ${usd(c.goal_cents)}` : ""} · {c.active ? "active" : "inactive"}</span></div>
-            )}
-          </div>
-        ))}
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: ".5rem" }}>
+        <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Campaigns</h1>
+        {manage && (
+          <Link href="/app/campaigns/new" style={btnPrimary}>
+            New campaign
+          </Link>
+        )}
       </div>
-      {manage && (
-        <form action={createCampaignAction} style={{ ...addBar }}>
-          <input name="name" placeholder="New campaign name" style={{ ...inp, flex: 1, minWidth: 160 }} required />
-          <input name="goal" placeholder="Goal $" style={{ ...inp, width: 110 }} />
-          <input type="date" name="startsOn" style={inp} />
-          <input type="date" name="endsOn" style={inp} />
-          <button type="submit" style={btnPrimary}>Add campaign</button>
-        </form>
-      )}
-
-      <h2 style={h2}>Appeals</h2>
-      <p style={{ ...muted, marginTop: 0 }}>
-        Use an appeal&apos;s tracking link on emails/landing pages so web gifts attribute to it.
+      <p style={{ color: "var(--app-text-soft)", fontSize: ".9rem", margin: ".4rem 0 1.1rem" }}>
+        A campaign is your fundraising effort with a goal — gifts, appeals, and fundraiser revenue all roll up here.
       </p>
-      <div style={cardWrap}>
-        {appeals.length === 0 && <p style={muted}>No appeals yet.</p>}
-        {appeals.map((a) => (
-          <div key={a.id} style={{ borderTop: "1px solid #f1f2f1", padding: ".6rem .8rem", fontSize: ".9rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: ".5rem", flexWrap: "wrap" }}>
-              <span><strong>{a.name}</strong> {a.channel && <span style={muted}>· {a.channel}</span>} {a.campaign_name && <span style={muted}>· {a.campaign_name}</span>}</span>
-            </div>
-            <div style={{ ...muted, marginTop: ".25rem" }}>
-              Tracking link: <code>{base}/give/{org?.slug}?appeal={a.id}</code>
-            </div>
-          </div>
-        ))}
-      </div>
-      {manage && (
-        <form action={createAppealAction} style={addBar}>
-          <input name="name" placeholder="New appeal name" style={{ ...inp, flex: 1, minWidth: 160 }} required />
-          <select name="campaignId" style={inp}>
-            <option value="">— campaign —</option>
-            {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select name="channel" style={inp}>
-            <option value="">— channel —</option>
-            {APPEAL_CHANNELS.map((ch) => <option key={ch} value={ch}>{ch}</option>)}
-          </select>
-          <button type="submit" style={btnPrimary}>Add appeal</button>
-        </form>
+
+      {campaigns.length === 0 ? (
+        <section style={card}>
+          <EmptyState
+            title="No campaigns yet"
+            description="Create your first campaign to set a goal, track progress, and send targeted asks."
+            action={manage ? <Link href="/app/campaigns/new" style={btnPrimary}>New campaign</Link> : undefined}
+          />
+        </section>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1rem" }}>
+          {campaigns.map((c) => {
+            const t = totalsById.get(c.id);
+            const raised = t?.raisedCents ?? 0;
+            const pct = c.goal_cents && c.goal_cents > 0 ? Math.min(100, Math.round((raised / c.goal_cents) * 100)) : null;
+            const days = daysRemaining(c.ends_on);
+            return (
+              <Link key={c.id} href={`/app/campaigns/${c.id}`} style={{ ...card, textDecoration: "none", color: "inherit", display: "block", opacity: c.active ? 1 : 0.65 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: ".5rem", flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: "1.02rem", flex: 1 }}>{c.name}</strong>
+                  {c.category && <Badge tone="info">{CATEGORY_LABELS[c.category] ?? c.category}</Badge>}
+                  {!c.active && <Badge tone="neutral">Inactive</Badge>}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".85rem", margin: ".8rem 0 .3rem" }}>
+                  <span style={{ fontWeight: 700 }}>{usd(raised)}</span>
+                  <span style={{ color: "#777" }}>{c.goal_cents ? `of ${usd(c.goal_cents)}${pct !== null ? ` · ${pct}%` : ""}` : "no goal"}</span>
+                </div>
+                <div style={{ height: 8, background: "#eef0ee", borderRadius: 99 }}>
+                  <div style={{ height: 8, width: `${pct ?? 0}%`, background: "var(--brand)", borderRadius: 99 }} />
+                </div>
+                <div style={{ display: "flex", gap: ".9rem", marginTop: ".7rem", fontSize: ".8rem", color: "#888" }}>
+                  <span>{fmtNumber(t?.donorCount ?? 0)} donors</span>
+                  <span>{fmtNumber(t?.giftCount ?? 0)} gifts</span>
+                  {days !== null ? <span>{days} day{days === 1 ? "" : "s"} left</span> : c.ends_on ? <span>ended {fmtDate(c.ends_on)}</span> : null}
+                  {c.public_slug && <span style={{ color: "var(--brand)" }}>public</span>}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
-      {!manage && <p style={{ ...muted, marginTop: "1rem" }}>Campaign management requires an admin role.</p>}
+      {!manage && <p style={{ color: "#999", fontSize: ".82rem", marginTop: "1rem" }}>Campaign management requires an admin role.</p>}
     </div>
   );
 }
 
-const h2: React.CSSProperties = { fontSize: "1.05rem", marginTop: "1.5rem" };
-const cardWrap: React.CSSProperties = { background: "#fff", border: "1px solid #e8eae8", borderRadius: 10, overflow: "hidden" };
-const addBar: React.CSSProperties = { display: "flex", gap: ".5rem", flexWrap: "wrap", alignItems: "center", marginTop: ".75rem" };
-const muted: React.CSSProperties = { color: "#999", fontSize: ".82rem" };
-const inp: React.CSSProperties = { padding: ".4rem .5rem", border: "1px solid #ccc", borderRadius: 6, fontSize: ".88rem" };
-const btn: React.CSSProperties = { padding: ".35rem .7rem", border: "1px solid #ccc", borderRadius: 6, background: "#fff", fontSize: ".82rem", cursor: "pointer" };
-const btnPrimary: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontSize: ".88rem", fontWeight: 600, cursor: "pointer" };
+const card: React.CSSProperties = { background: "#fff", border: "1px solid #e8eae8", borderRadius: 10, padding: "1rem" };
+const btnPrimary: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 8, background: "var(--brand)", color: "#fff", border: "none", fontSize: ".88rem", fontWeight: 600, cursor: "pointer", textDecoration: "none", display: "inline-block" };

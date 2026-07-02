@@ -20,6 +20,7 @@ import { requireEnv } from "@/lib/env";
 import { getOrgBySlug } from "@/repositories/orgs";
 import { getFundByCode, getFundById } from "@/repositories/funds";
 import { getAppealById } from "@/repositories/appeals";
+import { getCampaignByPublicSlug } from "@/repositories/campaigns";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
 import { getMemberBySlug } from "@/repositories/p2pMembers";
 import { grossUpForFees } from "@/domain/fees";
@@ -53,6 +54,8 @@ const BodySchema = z.object({
   employer: z.string().trim().max(200).nullable().optional(),
   coverFees: z.boolean().optional().default(false),
   appealId: z.string().uuid().nullable().optional(),
+  campaignSlug: z.string().trim().min(1).optional(),
+  isAnonymous: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -122,8 +125,16 @@ export async function POST(req: NextRequest) {
       appealCampaignId = appeal.campaign_id ?? "";
     }
   }
-  // Fundraiser campaign attribution takes precedence over an appeal's campaign.
-  const campaignId = fundraiserCampaignId || appealCampaignId;
+  // Optional campaign attribution from a public campaign page (?/give/org/c/slug).
+  // Resolved from the DB (active campaigns only); a bogus slug is just ignored.
+  let publicCampaignId = "";
+  if (body.campaignSlug) {
+    const campaign = await getCampaignByPublicSlug(org.id, body.campaignSlug);
+    if (campaign) publicCampaignId = campaign.id;
+  }
+  // Fundraiser campaign attribution takes precedence over an appeal's campaign,
+  // which takes precedence over the public campaign page.
+  const campaignId = fundraiserCampaignId || appealCampaignId || publicCampaignId;
 
   const intendedCents = body.amountCents;
   const chargeCents = body.coverFees ? grossUpForFees(intendedCents) : intendedCents;
@@ -153,6 +164,7 @@ export async function POST(req: NextRequest) {
     campaign_id: campaignId,
     fundraiser_id: fundraiserId,
     p2p_member_id: p2pMemberId,
+    is_anonymous: body.isAnonymous ? "true" : "",
   };
 
   const baseUrl = requireEnv("APP_BASE_URL").replace(/\/$/, "");
