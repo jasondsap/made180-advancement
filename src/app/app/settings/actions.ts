@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { createFund, updateFund } from "@/repositories/funds";
 import { updateOrgSettings } from "@/repositories/orgs";
+import { deleteConnection } from "@/repositories/canvaConnections";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const dollarsToCents = (v: string): number | null => {
@@ -37,6 +38,15 @@ export async function updateFundAction(fd: FormData) {
   });
   revalidatePath("/app/funds");
   redirect("/app/funds");
+}
+
+/** Disconnect the signed-in user's Canva account (per-user, not per-org). */
+export async function disconnectCanvaAction() {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  await deleteConnection(ctx.user.id);
+  revalidatePath("/app/settings");
+  redirect("/app/settings?canva=disconnected");
 }
 
 export async function updateOrgAction(fd: FormData) {

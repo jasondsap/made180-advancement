@@ -1,20 +1,37 @@
 import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
+import { flags } from "@/lib/featureFlags";
 import { getOrgById } from "@/repositories/orgs";
-import { updateOrgAction } from "./actions";
+import { getConnectionByUserId } from "@/repositories/canvaConnections";
+import { getMediaByUrl } from "@/repositories/canvaMedia";
+import { CanvaImageField } from "@/components/canva/CanvaImageField";
+import { updateOrgAction, disconnectCanvaAction } from "./actions";
+
+const CANVA_BANNERS: Record<string, { text: string; tone: "ok" | "err" }> = {
+  connected: { text: "Canva connected. Look for “Design with Canva” on image fields.", tone: "ok" },
+  disconnected: { text: "Canva disconnected.", tone: "ok" },
+  updated: { text: "Design updated from Canva.", tone: "ok" },
+  denied: { text: "Canva connection was declined.", tone: "err" },
+  error: { text: "Canva connection failed — please try again.", tone: "err" },
+};
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ msg?: string }>;
+  searchParams: Promise<{ msg?: string; canva?: string }>;
 }) {
   const ctx = await getAuthContext();
   if (!ctx) return null;
-  const { msg } = await searchParams;
+  const { msg, canva } = await searchParams;
   const org = await getOrgById(ctx.orgId);
   if (!org) return null;
   const manage = canManage(ctx.role);
   const a = (org.address_json ?? {}) as Record<string, string>;
+  const canvaEnabled = flags().canva;
+  const canvaConn = canvaEnabled ? await getConnectionByUserId(ctx.user.id) : undefined;
+  const canvaBanner = canva ? CANVA_BANNERS[canva] : undefined;
+  const logoMedia =
+    canvaEnabled && org.logo_url ? await getMediaByUrl(ctx.orgId, org.logo_url) : undefined;
 
   if (!manage) {
     return <div><h1 style={{ fontSize: "1.5rem" }}>Settings</h1><p style={{ color: "#999" }}>Settings require an admin role.</p></div>;
@@ -24,6 +41,11 @@ export default async function SettingsPage({
     <div style={{ maxWidth: 640 }}>
       <h1 style={{ fontSize: "1.5rem" }}>Settings</h1>
       {msg === "saved" && <div style={{ background: "#edf1ec", color: "var(--forest)", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Settings saved.</div>}
+      {canvaBanner && (
+        <div style={{ background: canvaBanner.tone === "ok" ? "#edf1ec" : "#fbeceb", color: canvaBanner.tone === "ok" ? "var(--forest)" : "#9b1c1c", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>
+          {canvaBanner.text}
+        </div>
+      )}
 
       <form action={updateOrgAction} style={{ display: "grid", gap: "1rem" }}>
         <fieldset style={fs}>
@@ -40,7 +62,18 @@ export default async function SettingsPage({
 
         <fieldset style={fs}>
           <legend style={lg}>Branding (public giving page &amp; receipts)</legend>
-          <Field label="Logo URL (absolute https:// link, shown on your giving page)"><input name="logoUrl" type="url" defaultValue={org.logo_url ?? ""} style={inp} placeholder="https://example.org/logo.png" /></Field>
+          <Field label="Logo URL (absolute https:// link, shown on your giving page)">
+            <CanvaImageField
+              name="logoUrl"
+              defaultValue={org.logo_url ?? ""}
+              placeholder="https://example.org/logo.png"
+              targetKind="org_logo"
+              targetId={org.id}
+              initialMediaId={logoMedia?.id ?? null}
+              canvaEnabled={canvaEnabled}
+              canvaConnected={Boolean(canvaConn)}
+            />
+          </Field>
           <Field label="Primary color (hex, e.g. #1c6e3c — defaults to Almonry oxblood)">
             <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
               <input name="primaryColor" defaultValue={org.primary_color ?? ""} style={{ ...inp, flex: 1 }} placeholder="#1c6e3c" />
@@ -62,6 +95,35 @@ export default async function SettingsPage({
 
         <div><button type="submit" style={btnPrimary}>Save settings</button></div>
       </form>
+
+      {canvaEnabled && (
+        <section style={{ ...fs, marginTop: "1rem" }}>
+          <legend style={lg}>Integrations</legend>
+          {canvaConn ? (
+            <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
+              <p style={{ fontSize: ".9rem", margin: 0, flex: 1 }}>
+                <strong>Canva</strong> — connected as {canvaConn.display_name ?? "your Canva account"}. “Design with
+                Canva” is available on image fields.
+              </p>
+              <form action={disconnectCanvaAction}>
+                <button type="submit" style={{ padding: ".4rem .8rem", border: "1px solid #ccc", borderRadius: 6, background: "#fff", fontSize: ".85rem", cursor: "pointer" }}>
+                  Disconnect
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap" }}>
+              <p style={{ fontSize: ".9rem", margin: 0, flex: 1 }}>
+                <strong>Canva</strong> — design campaign covers, logos, and email graphics without leaving Almonry.
+                Connects your personal Canva account.
+              </p>
+              <a href="/api/canva/connect" style={{ ...btnPrimary, textDecoration: "none", display: "inline-block" }}>
+                Connect Canva
+              </a>
+            </div>
+          )}
+        </section>
+      )}
 
       <section style={{ ...fs, marginTop: "1rem" }}>
         <legend style={lg}>Manage</legend>

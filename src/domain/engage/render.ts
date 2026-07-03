@@ -1,9 +1,9 @@
 import type { Constituent, Org } from "@/types/db";
 import type { EngageMergeField, EngageAddress } from "@/types/engage";
 
-/** Escape HTML so user-authored body content can't inject markup. */
+/** Escape HTML so user-authored body content can't inject markup or break out of attributes. */
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 const fullName = (c: Constituent) =>
@@ -31,12 +31,18 @@ export function renderMergeTags(template: string, c: Constituent, mergeFields: E
   return template.replace(/\{\{[^}]+\}\}/g, (tag) => builtin[tag] ?? defaults.get(tag) ?? "");
 }
 
-/** Minimal plaintext/markdown → safe HTML: escape, [link](url), **bold**, newline → <br>. */
+/** Minimal plaintext/markdown → safe HTML: escape, ![img](url), [link](url), **bold**, newline → <br>. */
 function bodyToHtml(text: string): string {
   return esc(text)
-    // Input is already HTML-escaped, so the captured URL can't break out of the
-    // attribute. http(s) only — no javascript: URLs.
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+    // Image rule MUST precede the link rule (else the link regex consumes the
+    // [alt](url) shape and strands the "!"). Input is already HTML-escaped and
+    // quotes are excluded from URLs, so the captured URL can't break out of
+    // the attribute. Images are https-only; links http(s) — no javascript:.
+    .replace(
+      /!\[([^\]]*)\]\((https:\/\/[^\s)"]+)\)/g,
+      '<img src="$2" alt="$1" style="max-width:100%;height:auto;border-radius:6px" />',
+    )
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)"]+)\)/g, '<a href="$2">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\r?\n/g, "<br>");
 }

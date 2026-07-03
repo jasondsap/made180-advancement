@@ -7,6 +7,10 @@ import { listFunds } from "@/repositories/funds";
 import { listCampaigns } from "@/repositories/campaigns";
 import { listTicketTypes } from "@/repositories/ticketTypes";
 import { listItems } from "@/repositories/auctions";
+import { flags } from "@/lib/featureFlags";
+import { getConnectionByUserId } from "@/repositories/canvaConnections";
+import { getMediaByUrl } from "@/repositories/canvaMedia";
+import { CanvaImageField } from "@/components/canva/CanvaImageField";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import {
   updateFundraiserAction,
@@ -57,6 +61,10 @@ export default async function EditFundraiserPage({
   const theme = fr.theme_json ?? {};
   const amounts = (theme.suggestedAmounts ?? []).map((c) => (c / 100).toString()).join(", ");
   const publicUrl = `/give/${org.slug}/${fr.slug}`;
+  const canvaEnabled = flags().canva;
+  const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
+  const coverMedia =
+    canvaEnabled && theme.coverImageUrl ? await getMediaByUrl(ctx.orgId, theme.coverImageUrl) : undefined;
 
   return (
     <div style={{ maxWidth: 720 }}>
@@ -231,7 +239,18 @@ export default async function EditFundraiserPage({
           </Field>
         </div>
         <Field label="Suggested amounts ($, comma-separated)"><input name="suggestedAmounts" defaultValue={amounts} placeholder="25, 50, 100, 250" style={inp} /></Field>
-        <Field label="Cover image URL (optional)"><input name="coverImageUrl" type="url" defaultValue={theme.coverImageUrl ?? ""} style={inp} /></Field>
+        <Field label="Cover image URL (optional)">
+          <CanvaImageField
+            name="coverImageUrl"
+            defaultValue={theme.coverImageUrl ?? ""}
+            placeholder="https://…/cover.jpg"
+            targetKind="fundraiser_cover"
+            targetId={fr.id}
+            initialMediaId={coverMedia?.id ?? null}
+            canvaEnabled={canvaEnabled}
+            canvaConnected={canvaConnected}
+          />
+        </Field>
         <Field label="Story / description (shown on the page)"><textarea name="story" defaultValue={theme.story ?? ""} style={{ ...inp, minHeight: 140, fontFamily: "var(--font-body)" }} /></Field>
         <div><button style={btnPrimary}>Save</button></div>
       </form>

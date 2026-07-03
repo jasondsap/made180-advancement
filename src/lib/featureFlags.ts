@@ -16,5 +16,6 @@ export function flags() {
     fundraiserEvents: on(e.FUNDRAISER_EVENTS_ENABLED),
     fundraiserP2p: on(e.FUNDRAISER_P2P_ENABLED),
     fundraiserAuction: on(e.FUNDRAISER_AUCTION_ENABLED),
+    canva: on(e.CANVA_ENABLED),
   };
 }

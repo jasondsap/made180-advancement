@@ -40,12 +40,25 @@ function readEnv() {
     TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     APP_BASE_URL: process.env.APP_BASE_URL,
-    // Engage / Fundraisers feature flags ("1"/"true" to enable).
+    // Canva Connect integration.
+    CANVA_CLIENT_ID: process.env.CANVA_CLIENT_ID,
+    CANVA_CLIENT_SECRET: process.env.CANVA_CLIENT_SECRET,
+    // 32-byte base64 key for AES-256-GCM encryption of third-party tokens at rest.
+    TOKEN_ENC_KEY: process.env.TOKEN_ENC_KEY,
+    // Public media storage (Canva exports, uploads). Custom credential names
+    // because AWS_ACCESS_KEY_ID is reserved in the Amplify/Lambda runtime;
+    // when unset the SDK default credential chain is used.
+    MEDIA_S3_BUCKET: process.env.MEDIA_S3_BUCKET,
+    MEDIA_S3_REGION: process.env.MEDIA_S3_REGION,
+    MEDIA_S3_ACCESS_KEY_ID: process.env.MEDIA_S3_ACCESS_KEY_ID,
+    MEDIA_S3_SECRET_ACCESS_KEY: process.env.MEDIA_S3_SECRET_ACCESS_KEY,
+    // Engage / Fundraisers / integrations feature flags ("1"/"true" to enable).
     ENGAGE_SMS_ENABLED: process.env.ENGAGE_SMS_ENABLED,
     ENGAGE_MAILINGS_ENABLED: process.env.ENGAGE_MAILINGS_ENABLED,
     FUNDRAISER_EVENTS_ENABLED: process.env.FUNDRAISER_EVENTS_ENABLED,
     FUNDRAISER_P2P_ENABLED: process.env.FUNDRAISER_P2P_ENABLED,
     FUNDRAISER_AUCTION_ENABLED: process.env.FUNDRAISER_AUCTION_ENABLED,
+    CANVA_ENABLED: process.env.CANVA_ENABLED,
   };
 }
 

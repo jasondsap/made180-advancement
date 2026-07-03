@@ -1,6 +1,7 @@
 import type { Campaign } from "@/repositories/campaigns";
 import { CAMPAIGN_CATEGORIES } from "@/repositories/campaigns";
 import { isoDay } from "@/lib/format";
+import { CanvaImageField } from "@/components/canva/CanvaImageField";
 import { CATEGORY_LABELS } from "./CampaignHeader";
 
 /** Shared create/edit campaign form. Pass a campaign to edit; action handles submit. */
@@ -8,10 +9,16 @@ export function CampaignForm({
   campaign,
   action,
   submitLabel,
+  canvaEnabled = false,
+  canvaConnected = false,
+  coverMediaId = null,
 }: {
   campaign?: Campaign;
   action: (fd: FormData) => Promise<void>;
   submitLabel: string;
+  canvaEnabled?: boolean;
+  canvaConnected?: boolean;
+  coverMediaId?: string | null;
 }) {
   const dateVal = (d: string | Date | null | undefined) => isoDay(d) ?? "";
   return (
@@ -64,7 +71,16 @@ export function CampaignForm({
         </label>
         <label style={lbl}>
           Cover image URL
-          <input name="coverImageUrl" defaultValue={campaign?.cover_image_url ?? ""} style={inp} placeholder="https://…/cover.jpg" />
+          <CanvaImageField
+            name="coverImageUrl"
+            defaultValue={campaign?.cover_image_url ?? ""}
+            placeholder="https://…/cover.jpg"
+            targetKind="campaign_cover"
+            targetId={campaign?.id ?? null}
+            initialMediaId={coverMediaId}
+            canvaEnabled={canvaEnabled}
+            canvaConnected={canvaConnected}
+          />
         </label>
       </fieldset>
 

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
+import { flags } from "@/lib/featureFlags";
 import { listSenders } from "@/repositories/engage/senders";
 import { listFunds } from "@/repositories/funds";
+import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { EmailComposer } from "../EmailComposer";
 import { saveEmailDraftAction, sendEmailNowAction } from "../../actions";
 
@@ -16,6 +18,8 @@ export default async function NewEmailPage() {
     listSenders(ctx.orgId),
     listFunds(ctx.orgId, { activeOnly: true }),
   ]);
+  const canvaEnabled = flags().canva;
+  const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
 
   return (
     <div>
@@ -28,6 +32,8 @@ export default async function NewEmailPage() {
         funds={funds.map((f) => ({ id: f.id, name: f.name }))}
         saveDraftAction={saveEmailDraftAction}
         sendNowAction={sendEmailNowAction}
+        canvaEnabled={canvaEnabled}
+        canvaConnected={canvaConnected}
       />
     </div>
   );

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
+import { flags } from "@/lib/featureFlags";
 import { getMessage } from "@/repositories/engage/messages";
 import { statsForMessage, listRecipients } from "@/repositories/engage/recipients";
 import { listSenders } from "@/repositories/engage/senders";
 import { listFunds } from "@/repositories/funds";
+import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { EmailComposer } from "../EmailComposer";
@@ -35,6 +37,8 @@ export default async function MessagePage({
   // Drafts are editable; reuse the composer.
   if (message.status === "draft" && canManage(ctx.role)) {
     const [senders, funds] = await Promise.all([listSenders(ctx.orgId), listFunds(ctx.orgId, { activeOnly: true })]);
+    const canvaEnabled = flags().canva;
+    const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
     return (
       <div>
         <Back />
@@ -46,6 +50,8 @@ export default async function MessagePage({
           funds={funds.map((f) => ({ id: f.id, name: f.name }))}
           saveDraftAction={saveEmailDraftAction}
           sendNowAction={sendEmailNowAction}
+          canvaEnabled={canvaEnabled}
+          canvaConnected={canvaConnected}
         />
         <form action={deleteMessageAction} style={{ marginTop: "1.5rem" }}>
           <input type="hidden" name="id" value={message.id} />

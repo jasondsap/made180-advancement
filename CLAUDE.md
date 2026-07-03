@@ -29,7 +29,10 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
     `getByProviderId` (provider message id), the public fundraiser/member/auction
     slug+id resolvers (`fundraisers.getPublishedFundraiser`,
     `p2pMembers.getMemberBySlug`, `ticketTypes.listPublicTicketTypes`,
-    `auctions.getItemPublic`/`highBid`/`listPublicItems`).
+    `auctions.getItemPublic`/`highBid`/`listPublicItems`), and
+    `canvaConnections.ts` (per-user OAuth tokens, keyed by `user_id` — a Canva
+    login belongs to a person; access control is via the session user + the
+    org-scoped `canvaMedia` repo).
 - **PCI = SAQ-A.** Card entry is Stripe-hosted only. We store Stripe IDs + last4.
 - **Idempotent webhooks.** `webhook_events.stripe_event_id` claimed first; gifts
   unique on `stripe_payment_intent_id` and (partial) `stripe_invoice_id`;
@@ -54,12 +57,17 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   auction_items, auction_bids) · 0011 engage_segments · 0012 interactions+tasks ·
   0013 campaigns (campaign description/category/cover/public_slug, appeal
   ask_amount/sent_on, gifts.is_anonymous, engage_messages.appeal_id, attribution
-  indexes). Runner: `scripts/migrate.ts`
+  indexes) · 0014 canva (canva_connections per-user OAuth tokens +
+  canva_media org-scoped exports). Runner: `scripts/migrate.ts`
   (`DATABASE_URL_UNPOOLED`; checksums applied files).
-- `src/lib/` — `env.ts` (all-optional literal reads + `requireEnv`; build-safe),
-  `db.ts`, `tenancy.ts`, `stripe.ts`, `auth.ts`, `auth-options.ts`, `email.ts`
-  (`sendReceiptEmail`/`sendEngageEmail`/`getResendClient`), `twilio.ts`
+- `src/lib/` — `env.ts` (all-optional literal reads + `requireEnv`; build-safe —
+  new vars MUST also be mirrored in `next.config.mjs` `env:` block to reach the
+  Amplify Lambda), `db.ts`, `tenancy.ts`, `stripe.ts`, `auth.ts`, `auth-options.ts`,
+  `email.ts` (`sendReceiptEmail`/`sendEngageEmail`/`getResendClient`), `twilio.ts`
   (REST send + signature validation), `engageTokens.ts` (signed unsubscribe),
+  `crypto.ts` (AES-256-GCM encrypt/decrypt for tokens at rest, `TOKEN_ENC_KEY`),
+  `s3.ts` (`putPublicImage` → media bucket), `canva.ts` (Canva Connect OAuth/PKCE,
+  CAS token refresh, export polling, correlation-JWT verify),
   `brand.ts` (Almonry tokens + chart palette), `featureFlags.ts`, `anthropic.ts`,
   `format.ts`, `authConstants.ts`.
 - `src/repositories/` — orgs, constituents, gifts, funds, campaigns, appeals,
@@ -67,14 +75,17 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   analytics, reports, **fundraisers, ticketTypes, registrants, p2pMembers,
   auctions**, **campaignStats** (summary/sources/cumulative/appeal-perf/top
   donors/donor wall), **campaignSegments** (campaign-relative LYBUNT/SYBUNT/
-  first-time/lapsed/recurring resolvers), and **engage/** (domains, senders,
-  addresses, mergeFields, messages, recipients, audience, segments). All
-  `orgId`-scoped (+ documented exceptions).
+  first-time/lapsed/recurring resolvers), **canvaConnections** (per-user OAuth,
+  documented exception), **canvaMedia** (org-scoped Canva exports), and
+  **engage/** (domains, senders, addresses, mergeFields, messages, recipients,
+  audience, segments). All `orgId`-scoped (+ documented exceptions).
 - `src/domain/` — fees, receiptPdf, receipts, yearEndPdf, quickbooksCsv,
   assistant, **campaignAsks** (AI appeal drafting), **campaignReportPdf**
   (board report), and **engage/** (render, send, sendSms, mailingPdf).
 - `src/components/` — `ArchMark` (logo), `OrgSwitcher`, `SignOutButton`,
-  `ui/` (DataTable, EmptyState, Badge, SubTabs), `tidings/` (TidingsTabs, SettingsNav).
+  `ui/` (DataTable, EmptyState, Badge, SubTabs), `tidings/` (TidingsTabs, SettingsNav),
+  `canva/` (`CanvaImageField` drop-in image field, `CanvaPicker` modal,
+  `CanvaInsertImageButton` for the email composer).
 - `src/app/give/[orgSlug]/` — default donation page; `[fundraiserSlug]/` themed
   fundraiser/event page; `[fundraiserSlug]/p/[memberSlug]/` peer-to-peer page;
   `c/[campaignSlug]/` public campaign page (thermometer + donor wall; exists only
@@ -85,6 +96,8 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   auth/cognito-logout, assistant/{query,thank-you,appeal-draft}, export/quickbooks,
   year-end/[constituentId], fundraisers/export, p2p/join, auction/bid,
   campaigns/segment-preview, campaigns/[id]/report (board PDF),
+  canva/{connect,callback,designs,export,edit,return} (Canva Connect OAuth +
+  design export→S3 + edit round-trip),
   tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf.
 - `src/app/app/` — admin (force-dynamic): dashboard, gifts, constituents, pledges,
   reports, funds, **campaigns** (card list + /new + [id] detail with
@@ -181,7 +194,20 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
   `/api/tidings/webhook/twilio/inbound`; set `ENGAGE_SMS_ENABLED`.
 - `ANTHROPIC_API_KEY` (assistant). `APP_BASE_URL` (checkout/return + webhook URLs).
 - Feature flags as desired: `ENGAGE_MAILINGS_ENABLED`, `FUNDRAISER_EVENTS_ENABLED`,
-  `FUNDRAISER_P2P_ENABLED`, `FUNDRAISER_AUCTION_ENABLED`.
+  `FUNDRAISER_P2P_ENABLED`, `FUNDRAISER_AUCTION_ENABLED`, `CANVA_ENABLED`.
+- **Canva** (set `CANVA_ENABLED=1`): Developer Portal integration —
+  `CANVA_CLIENT_ID`/`CANVA_CLIENT_SECRET`, scopes
+  `design:meta:read design:content:read profile:read`, OAuth redirect URL
+  `{APP_BASE_URL}/api/canva/callback`, return-navigation URL
+  `{APP_BASE_URL}/api/canva/return` (dev: `http://127.0.0.1:3000` if `localhost`
+  rejected). Private integration works for the owning Canva team immediately;
+  public availability across orgs needs Canva review.
+- **Media storage** (Canva exports): S3 bucket + `MEDIA_S3_BUCKET`/`MEDIA_S3_REGION`
+  (+ optional `MEDIA_S3_ACCESS_KEY_ID`/`SECRET`, else default credential chain);
+  bucket policy allows public `s3:GetObject` on `canva/*`, app role has
+  `s3:PutObject`. `TOKEN_ENC_KEY` = 32-byte base64 (AES-GCM token encryption).
+  **All new env vars must also be added to the `next.config.mjs` `env:` block** to
+  reach the Amplify Lambda.
 - Per org: complete Stripe Connect onboarding (super_admin console → org → Connect),
   set EIN, receipt sender/signatory, mailing address, logo + color.
 
@@ -194,9 +220,12 @@ source breakdown + cumulative chart, appeal performance + CRUD, segmented Asks
 with AI-drafted appeals sent via Tidings + tracked back via
 engage_messages.appeal_id, board-ready PDF report w/ YoY, public campaign pages
 w/ donor wall, anonymous giving end-to-end, campaign/appeal attribution on
-manual gift entry).
+manual gift entry); Canva Connect integration (feature-flagged per-user OAuth;
+"Design with Canva" picker + "Edit in Canva" round-trip on campaign covers, org
+logo, fundraiser heroes, and Tidings email graphics; exports copied to a public
+S3 media bucket at a stable key so edits overwrite in place).
 Phase-1 CRM (dashboard/gifts/constituents+merge/funds/campaigns/pledges/reports/
-QuickBooks export/Dori assistant/receipts) intact. 13 migrations applied.
+QuickBooks export/Dori assistant/receipts) intact. 14 migrations applied.
 
 ## Deploy: AWS Amplify
 See `amplify.yml`: push to Git, connect in Amplify (Next.js SSR auto-detected),

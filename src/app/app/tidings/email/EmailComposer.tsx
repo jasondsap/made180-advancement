@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
+import { CanvaInsertImageButton } from "@/components/canva/CanvaInsertImageButton";
 
 type SenderOption = { id: string; label: string };
 type FundOption = { id: string; name: string };
@@ -17,6 +18,8 @@ export function EmailComposer({
   funds,
   saveDraftAction,
   sendNowAction,
+  canvaEnabled = false,
+  canvaConnected = false,
 }: {
   messageId?: string;
   defaults?: { name?: string; subject?: string; body?: string; senderId?: string | null };
@@ -24,9 +27,20 @@ export function EmailComposer({
   funds: FundOption[];
   saveDraftAction: (fd: FormData) => void | Promise<void>;
   sendNowAction: (fd: FormData) => void | Promise<void>;
+  canvaEnabled?: boolean;
+  canvaConnected?: boolean;
 }) {
   const [mode, setMode] = useState<"all" | "fund">("all");
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const canSend = senders.length > 0;
+
+  // Insert markdown at the cursor; textarea stays uncontrolled.
+  function insertAtCursor(md: string) {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    ta.setRangeText(`\n${md}\n`, ta.selectionStart, ta.selectionEnd, "end");
+    ta.focus();
+  }
 
   return (
     <form style={{ display: "grid", gap: "1rem", maxWidth: 720 }}>
@@ -47,8 +61,18 @@ export function EmailComposer({
         <input name="subject" defaultValue={defaults?.subject ?? ""} style={inp} placeholder="A note of thanks" required />
       </Field>
 
-      <Field label="Body — use **bold** and merge tags like {{contact.first_name}}">
-        <textarea name="body" defaultValue={defaults?.body ?? ""} style={{ ...inp, minHeight: 200, fontFamily: "var(--font-body)" }} placeholder={"Dear {{contact.first_name}},\n\nThank you for your support..."} required />
+      <Field label="Body — use **bold**, ![alt](image-url), and merge tags like {{contact.first_name}}">
+        {(canvaEnabled || undefined) && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <CanvaInsertImageButton
+              targetId={messageId ?? null}
+              canvaEnabled={canvaEnabled}
+              canvaConnected={canvaConnected}
+              onInsert={insertAtCursor}
+            />
+          </div>
+        )}
+        <textarea ref={bodyRef} name="body" defaultValue={defaults?.body ?? ""} style={{ ...inp, minHeight: 200, fontFamily: "var(--font-body)" }} placeholder={"Dear {{contact.first_name}},\n\nThank you for your support..."} required />
       </Field>
 
       <fieldset style={{ border: "1px solid var(--app-border)", borderRadius: 10, padding: "1rem", display: "grid", gap: ".6rem" }}>
