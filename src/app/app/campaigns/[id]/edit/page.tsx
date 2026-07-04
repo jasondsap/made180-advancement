@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getCampaignById } from "@/repositories/campaigns";
 import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { getMediaByUrl } from "@/repositories/canvaMedia";
@@ -17,7 +17,7 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
   if (!canManage(ctx.role)) {
     return <p style={{ color: "#999" }}>Editing campaigns requires an admin role.</p>;
   }
-  const canvaEnabled = flags().canva;
+  const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
   const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
   const coverMedia =
     canvaEnabled && campaign.cover_image_url

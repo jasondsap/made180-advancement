@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { getMessage } from "@/repositories/engage/messages";
 import { listRecipients } from "@/repositories/engage/recipients";
@@ -18,9 +18,9 @@ export default async function MailingPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ msg?: string }>;
 }) {
-  if (!flags().engageMailings) notFound();
   const ctx = await getAuthContext();
   if (!ctx) return null;
+  if (!(await orgFlags(ctx.orgId)).engageMailings) notFound();
   const { id } = await params;
   const { msg } = await searchParams;
   const message = await getMessage(ctx.orgId, id);

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getAppUser, resolveActiveOrgId, roleFor, listAccessibleOrgs } from "@/lib/auth";
+import { getAppUser, resolveActiveOrgId, roleFor, listAccessibleOrgs, canManage } from "@/lib/auth";
 import { getOrgById } from "@/repositories/orgs";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ArchMark } from "@/components/ArchMark";
@@ -41,6 +41,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: "/app/assistant", label: "Assistant" },
     { href: "/app/settings", label: "Settings" },
   ];
+  if (canManage(role)) nav.splice(nav.length - 1, 0, { href: "/app/import", label: "Import" });
   if (role === "super_admin") nav.push({ href: "/app/admin/orgs", label: "Admin" });
 
   return (

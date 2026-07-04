@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getMessage } from "@/repositories/engage/messages";
 import { statsForMessage, listRecipients } from "@/repositories/engage/recipients";
 import { listSenders } from "@/repositories/engage/senders";
@@ -37,7 +37,7 @@ export default async function MessagePage({
   // Drafts are editable; reuse the composer.
   if (message.status === "draft" && canManage(ctx.role)) {
     const [senders, funds] = await Promise.all([listSenders(ctx.orgId), listFunds(ctx.orgId, { activeOnly: true })]);
-    const canvaEnabled = flags().canva;
+    const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
     const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
     return (
       <div>

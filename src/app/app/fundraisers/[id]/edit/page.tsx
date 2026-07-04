@@ -7,7 +7,7 @@ import { listFunds } from "@/repositories/funds";
 import { listCampaigns } from "@/repositories/campaigns";
 import { listTicketTypes } from "@/repositories/ticketTypes";
 import { listItems } from "@/repositories/auctions";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { getMediaByUrl } from "@/repositories/canvaMedia";
 import { CanvaImageField } from "@/components/canva/CanvaImageField";
@@ -61,7 +61,7 @@ export default async function EditFundraiserPage({
   const theme = fr.theme_json ?? {};
   const amounts = (theme.suggestedAmounts ?? []).map((c) => (c / 100).toString()).join(", ");
   const publicUrl = `/give/${org.slug}/${fr.slug}`;
-  const canvaEnabled = flags().canva;
+  const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
   const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
   const coverMedia =
     canvaEnabled && theme.coverImageUrl ? await getMediaByUrl(ctx.orgId, theme.coverImageUrl) : undefined;

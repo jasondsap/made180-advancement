@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { CampaignForm } from "../CampaignForm";
 import { createCampaignAction } from "../actions";
@@ -11,7 +11,7 @@ export default async function NewCampaignPage() {
   if (!canManage(ctx.role)) {
     return <p style={{ color: "#999" }}>Creating campaigns requires an admin role.</p>;
   }
-  const canvaEnabled = flags().canva;
+  const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
   const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
   return (
     <div style={{ maxWidth: 640 }}>

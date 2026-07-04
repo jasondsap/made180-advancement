@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { listMessages } from "@/repositories/engage/messages";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -17,7 +17,9 @@ const TABS: { key: string; label: string; statuses: MessageStatus[] }[] = [
 const statusTone: Record<MessageStatus, Tone> = { draft: "neutral", scheduled: "info", sending: "info", sent: "success", failed: "danger" };
 
 export default async function MailingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; msg?: string }> }) {
-  if (!flags().engageMailings) {
+  const ctx = await getAuthContext();
+  if (!ctx) return null;
+  if (!(await orgFlags(ctx.orgId)).engageMailings) {
     return (
       <div style={{ border: "1px solid var(--app-border)", borderRadius: 12, padding: "3rem", background: "#fff" }}>
         <EmptyState
@@ -29,8 +31,6 @@ export default async function MailingsPage({ searchParams }: { searchParams: Pro
     );
   }
 
-  const ctx = await getAuthContext();
-  if (!ctx) return null;
   const { tab = "generated", msg } = await searchParams;
   const active = TABS.find((t) => t.key === tab) ?? TABS[0]!;
   const messages = await listMessages(ctx.orgId, { channel: "mail", status: active.statuses });

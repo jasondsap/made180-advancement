@@ -44,6 +44,8 @@ export interface Org {
   address_json: AddressJson | null;
   logo_url: string | null;
   primary_color: string | null;
+  /** Per-org entitlement overrides; null / missing key = entitled (env flag governs). */
+  features: Record<string, boolean> | null;
   created_at: Date;
 }
 

@@ -10,7 +10,9 @@ import {
   changeRoleAction,
   removeMemberAction,
   startStripeOnboardingAction,
+  updateOrgFeaturesAction,
 } from "../actions";
+import { flags, FEATURE_LABELS, type FeatureKey } from "@/lib/featureFlags";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,9 @@ export default async function ManageOrgPage({
       {msg === "created" && <Banner>Organization created. Connect Stripe and add members below.</Banner>}
       {msg === "saved" && <Banner>Changes saved.</Banner>}
       {msg === "member" && <Banner>Member added.</Banner>}
+      {msg === "invited" && <Banner>Member added — invitation email sent with a temporary password.</Banner>}
+      {msg === "invite_failed" && <Banner>Member added, but the Cognito invite could not be sent — create the login in the AWS console or retry.</Banner>}
+      {msg === "bad_email" && <Banner>That doesn&apos;t look like a valid email address.</Banner>}
       {stripeReturn === "return" && <Banner>Returned from Stripe onboarding. Status refreshed below.</Banner>}
 
       {/* Stripe Connect */}
@@ -135,6 +140,30 @@ export default async function ManageOrgPage({
         <p style={{ fontSize: ".78rem", color: "#999", margin: ".6rem 0 0" }}>
           The user is granted access immediately; their identity binds on first Cognito sign-in (matched by email).
         </p>
+      </Section>
+
+      {/* Feature entitlements */}
+      <Section title="Features">
+        <form action={updateOrgFeaturesAction}>
+          <input type="hidden" name="orgId" value={org.id} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: ".5rem", marginBottom: ".9rem" }}>
+            {(Object.keys(FEATURE_LABELS) as FeatureKey[]).map((key) => {
+              const provisioned = flags()[key];
+              const entitled = org.features?.[key] !== false;
+              return (
+                <label key={key} style={{ display: "flex", alignItems: "center", gap: ".45rem", fontSize: ".88rem", color: provisioned ? "inherit" : "#999" }}>
+                  <input type="checkbox" name={`feature_${key}`} defaultChecked={entitled} />
+                  {FEATURE_LABELS[key]}
+                  {!provisioned && <span style={{ fontSize: ".72rem" }}>(not provisioned)</span>}
+                </label>
+              );
+            })}
+          </div>
+          <button type="submit" style={btnPrimary}>Save features</button>
+          <p style={{ fontSize: ".78rem", color: "#999", margin: ".6rem 0 0" }}>
+            A feature is live for this org only when it is both provisioned platform-wide (env) and checked here.
+          </p>
+        </form>
       </Section>
 
       {/* Core details */}

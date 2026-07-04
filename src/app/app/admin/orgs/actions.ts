@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSuperAdmin } from "@/lib/auth";
-import { createOrg, getOrgById, setStripeAccountId, updateOrgSettings } from "@/repositories/orgs";
+import { createOrg, getOrgById, setStripeAccountId, updateOrgSettings, updateOrgFeatures } from "@/repositories/orgs";
+import { FEATURE_LABELS, type FeatureKey } from "@/lib/featureFlags";
 import {
   getOrCreateUserByEmail,
   addMembership,
@@ -12,6 +13,7 @@ import {
 } from "@/repositories/users";
 import { getStripe } from "@/lib/stripe";
 import { requireEnv } from "@/lib/env";
+import { inviteCognitoUser } from "@/lib/cognitoAdmin";
 import type { MembershipRole } from "@/types/db";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -57,16 +59,40 @@ export async function updateOrgCoreAction(fd: FormData) {
   redirect(`/app/admin/orgs/${orgId}?msg=saved`);
 }
 
+/**
+ * Save per-org entitlement overrides. Unchecked = explicitly disabled (false);
+ * checked = entitled (key omitted, so env provisioning governs).
+ */
+export async function updateOrgFeaturesAction(fd: FormData) {
+  await requireSuperAdmin();
+  const orgId = str(fd, "orgId");
+  const overrides: Record<string, boolean> = {};
+  for (const key of Object.keys(FEATURE_LABELS) as FeatureKey[]) {
+    if (fd.get(`feature_${key}`) !== "on") overrides[key] = false;
+  }
+  await updateOrgFeatures(orgId, Object.keys(overrides).length > 0 ? overrides : null);
+  revalidatePath(`/app/admin/orgs/${orgId}`);
+  redirect(`/app/admin/orgs/${orgId}?msg=saved`);
+}
+
 export async function addMemberAction(fd: FormData) {
   await requireSuperAdmin();
   const orgId = str(fd, "orgId");
-  const email = str(fd, "email");
-  if (email) {
+  const email = str(fd, "email").toLowerCase();
+  let msg = "member";
+  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     const user = await getOrCreateUserByEmail(email, null);
     await addMembership(orgId, user.id, asRole(str(fd, "role")));
+    // Provision the Cognito login + send the invitation email (temp password).
+    // Membership is already granted; a Cognito failure is surfaced, not fatal.
+    const invite = await inviteCognitoUser(email);
+    if (invite === "invited") msg = "invited";
+    else if (invite === "failed") msg = "invite_failed";
+  } else if (email) {
+    msg = "bad_email";
   }
   revalidatePath(`/app/admin/orgs/${orgId}`);
-  redirect(`/app/admin/orgs/${orgId}?msg=member`);
+  redirect(`/app/admin/orgs/${orgId}?msg=${msg}`);
 }
 
 export async function changeRoleAction(fd: FormData) {

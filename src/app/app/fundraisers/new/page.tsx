@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { NewFundraiserWizard } from "../NewFundraiserWizard";
 import { createFundraiserAction } from "../actions";
 
@@ -10,7 +10,7 @@ export default async function NewFundraiserPage() {
   const ctx = await getAuthContext();
   if (!ctx) return null;
   if (!canManage(ctx.role)) return <p style={{ color: "#999" }}>Creating fundraisers requires an admin role.</p>;
-  const f = flags();
+  const f = await orgFlags(ctx.orgId);
 
   return (
     <div>

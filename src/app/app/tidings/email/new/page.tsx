@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { listSenders } from "@/repositories/engage/senders";
 import { listFunds } from "@/repositories/funds";
 import { getConnectionByUserId } from "@/repositories/canvaConnections";
@@ -18,7 +18,7 @@ export default async function NewEmailPage() {
     listSenders(ctx.orgId),
     listFunds(ctx.orgId, { activeOnly: true }),
   ]);
-  const canvaEnabled = flags().canva;
+  const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
   const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
 
   return (

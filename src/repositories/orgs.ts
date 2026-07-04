@@ -105,6 +105,18 @@ export async function updateOrgSettings(
   `;
 }
 
+/** Replace the org's feature-entitlement overrides (super_admin console). */
+export async function updateOrgFeatures(
+  orgId: string,
+  features: Record<string, boolean> | null,
+): Promise<void> {
+  assertOrgId(orgId);
+  await sql`
+    UPDATE orgs SET features = ${features ? JSON.stringify(features) : null}::jsonb
+    WHERE id = ${orgId}
+  `;
+}
+
 /** Accept '#rrggbb' / 'rrggbb' (case-insensitive); store as '#rrggbb' or null. */
 export function normalizeHex(v: string | null | undefined): string | null {
   if (!v) return null;

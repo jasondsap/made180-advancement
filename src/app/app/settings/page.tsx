@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { flags } from "@/lib/featureFlags";
+import { orgFlags } from "@/lib/featureFlags";
 import { getOrgById } from "@/repositories/orgs";
 import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { getMediaByUrl } from "@/repositories/canvaMedia";
@@ -27,7 +27,7 @@ export default async function SettingsPage({
   if (!org) return null;
   const manage = canManage(ctx.role);
   const a = (org.address_json ?? {}) as Record<string, string>;
-  const canvaEnabled = flags().canva;
+  const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
   const canvaConn = canvaEnabled ? await getConnectionByUserId(ctx.user.id) : undefined;
   const canvaBanner = canva ? CANVA_BANNERS[canva] : undefined;
   const logoMedia =
