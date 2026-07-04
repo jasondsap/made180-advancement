@@ -48,6 +48,31 @@ export async function sendReceiptEmail(msg: ReceiptEmail): Promise<{ id: string 
   return { id: result.data?.id ?? null };
 }
 
+export interface TransactionalEmail {
+  fromName: string;
+  fromEmail: string | null;
+  to: string;
+  subject: string;
+  html: string;
+}
+
+/**
+ * Send a plain transactional email (no attachment, no marketing unsubscribe
+ * header) — e.g. a failed-payment dunning notice. Distinct from receipts
+ * (attachment) and Engage (marketing/List-Unsubscribe).
+ */
+export async function sendTransactionalEmail(msg: TransactionalEmail): Promise<{ id: string | null }> {
+  const from = msg.fromEmail || env().RESEND_FROM_FALLBACK || "onboarding@resend.dev";
+  const result = await client().emails.send({
+    from: `${msg.fromName} <${from}>`,
+    to: msg.to,
+    subject: msg.subject,
+    html: msg.html,
+  });
+  if (result.error) throw new Error(`Resend send failed: ${result.error.message}`);
+  return { id: result.data?.id ?? null };
+}
+
 export interface EngageEmail {
   fromName: string;
   fromEmail: string | null;

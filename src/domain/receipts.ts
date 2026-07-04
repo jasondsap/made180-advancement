@@ -9,6 +9,7 @@ import {
 } from "@/repositories/receipts";
 import { buildReceiptPdf } from "@/domain/receiptPdf";
 import { sendReceiptEmail } from "@/lib/email";
+import { manageBillingUrl } from "@/domain/recurringNotices";
 
 /**
  * Issue (generate + email) a tax receipt for a succeeded gift.
@@ -59,6 +60,9 @@ export async function issueReceipt(orgId: string, giftId: string): Promise<Issue
   const donorName =
     [constituent.first_name, constituent.last_name].filter(Boolean).join(" ") || "Friend";
 
+  // Recurring gifts get a self-service "manage my gift" link in the email.
+  const manageUrl = gift.gift_type === "recurring" ? manageBillingUrl(orgId, constituent.id) : null;
+
   const pdf = buildReceiptPdf({
     org: {
       legal_name: org.legal_name,
@@ -91,7 +95,7 @@ export async function issueReceipt(orgId: string, giftId: string): Promise<Issue
     fromEmail: org.receipt_from_email,
     to: constituent.email,
     subject: `Your donation receipt — ${receiptNumber}`,
-    html: receiptEmailHtml({ donorName, amount, orgName: org.legal_name }),
+    html: receiptEmailHtml({ donorName, amount, orgName: org.legal_name, manageUrl }),
     pdf,
     pdfFilename: `receipt-${receiptNumber}.pdf`,
   });
@@ -101,13 +105,18 @@ export async function issueReceipt(orgId: string, giftId: string): Promise<Issue
   return { receiptNumber, emailId, alreadyHadNumber };
 }
 
-function receiptEmailHtml(p: { donorName: string; amount: string; orgName: string }): string {
+function receiptEmailHtml(p: { donorName: string; amount: string; orgName: string; manageUrl?: string | null }): string {
+  const manageLine = p.manageUrl
+    ? `<p style="font-size:13px;color:#666">Manage your recurring gift (update your card, change, or cancel) anytime:
+         <a href="${p.manageUrl}">manage my monthly gift</a>.</p>`
+    : "";
   return `
   <div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.55">
     <p>Dear ${escapeHtml(p.donorName)},</p>
     <p>Thank you for your generous gift of <strong>${p.amount}</strong> to ${escapeHtml(p.orgName)}.
        Your support makes a real difference.</p>
     <p>Your official tax receipt is attached as a PDF for your records.</p>
+    ${manageLine}
     <p style="margin-top:28px">With gratitude,<br/>${escapeHtml(p.orgName)}</p>
     <hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0"/>
     <p style="font-size:12px;color:#888">

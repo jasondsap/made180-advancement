@@ -27,13 +27,14 @@ import {
   markWebhookProcessed,
   markWebhookError,
 } from "@/repositories/webhookEvents";
-import { upsertConstituentByEmail } from "@/repositories/constituents";
-import { insertGift, markRefundedByPaymentIntent } from "@/repositories/gifts";
+import { upsertConstituentByEmail, setConstituentStripeCustomer } from "@/repositories/constituents";
+import { insertGift, markRefundedByPaymentIntent, setGiftStatusByPaymentIntent } from "@/repositories/gifts";
 import { upsertRecurringPlan, setRecurringPlanStatus } from "@/repositories/recurringPlans";
 import { getFundraiser } from "@/repositories/fundraisers";
 import { getTicketType } from "@/repositories/ticketTypes";
 import { insertRegistrant } from "@/repositories/registrants";
 import { issueReceipt } from "@/domain/receipts";
+import { sendRecurringDunning } from "@/domain/recurringNotices";
 import type { AddressJson, TributeType } from "@/types/db";
 
 /** Loose view of fields whose typing varies across Stripe API versions. */
@@ -95,6 +96,36 @@ export async function POST(req: NextRequest) {
         // Recurring: first payment + every renewal. Idempotent per invoice id.
         const invoice = event.data.object as InvoiceLoose;
         await handleRecurringInvoice(stripe, invoice, event.id);
+        break;
+      }
+      case "invoice.payment_failed": {
+        // A recurring charge failed (declined/expired card). Mark the plan
+        // past_due and email the donor a dunning notice with a manage link.
+        const invoice = event.data.object as InvoiceLoose;
+        await handleFailedInvoice(stripe, invoice, event.id);
+        break;
+      }
+      case "charge.dispute.created": {
+        // A chargeback opened — pull the gift out of every succeeded-only rollup
+        // until it resolves. dispute.closed restores or finalizes it below.
+        const dispute = event.data.object as Stripe.Dispute;
+        const piId = idOf(dispute.payment_intent);
+        if (piId) {
+          const g = await setGiftStatusByPaymentIntent(piId, "disputed");
+          if (g) await setWebhookEventOrg(event.id, g.org_id);
+        }
+        break;
+      }
+      case "charge.dispute.closed": {
+        const dispute = event.data.object as Stripe.Dispute;
+        const piId = idOf(dispute.payment_intent);
+        if (piId) {
+          // won → the charge stands (back to succeeded); lost/warning_closed →
+          // funds are gone (treat like a refund so totals stay honest).
+          const resolved = dispute.status === "won" ? "succeeded" : "refunded";
+          const g = await setGiftStatusByPaymentIntent(piId, resolved);
+          if (g) await setWebhookEventOrg(event.id, g.org_id);
+        }
         break;
       }
       case "customer.subscription.created":
@@ -243,6 +274,7 @@ async function recordOneTimeGift(stripe: Stripe, input: OneTimeInput) {
     address: input.address,
     source: "web_donation",
   });
+  if (input.customerId) await setConstituentStripeCustomer(input.orgId, constituent.id, input.customerId);
 
   const { feeCents, netCents } = await captureFeeNet(stripe, input.paymentIntentId);
 
@@ -314,6 +346,8 @@ async function handleEventSession(_stripe: Stripe, session: Stripe.Checkout.Sess
     lastName: splitName(m.attendee_name).last,
     source: "event",
   });
+  const eventCustomerId = idOf(session.customer);
+  if (eventCustomerId) await setConstituentStripeCustomer(orgId, constituent.id, eventCustomerId);
 
   const fr = await getFundraiser(orgId, fundraiserId);
 
@@ -393,6 +427,8 @@ async function handleRecurringInvoice(stripe: Stripe, invoice: InvoiceLoose, eve
     address: parseAddressMetadata(subMeta.donor_address),
     source: "web_donation",
   });
+  const invoiceCustomerId = idOf(invoice.customer);
+  if (invoiceCustomerId) await setConstituentStripeCustomer(orgId, constituent.id, invoiceCustomerId);
 
   const piId = idOf(invoice.payment_intent ?? null);
   const { feeCents, netCents } = piId
@@ -423,6 +459,41 @@ async function handleRecurringInvoice(stripe: Stripe, invoice: InvoiceLoose, eve
 
   if (!created) return; // replay / already logged
   await issueReceiptBestEffort(orgId, gift.id);
+}
+
+/**
+ * A recurring invoice failed to charge. Mark the plan past_due and send the
+ * donor a dunning email with a link to fix their card. We don't record a gift
+ * (nothing was collected). Best-effort email — never 500 the webhook over it.
+ */
+async function handleFailedInvoice(stripe: Stripe, invoice: InvoiceLoose, eventId: string) {
+  const subId = idOf(invoice.subscription ?? null);
+  if (!subId) return;
+
+  let subMeta: Record<string, string> = {};
+  try {
+    const sub = await stripe.subscriptions.retrieve(subId);
+    subMeta = (sub.metadata ?? {}) as Record<string, string>;
+  } catch {
+    subMeta = (invoice.subscription_details?.metadata ?? invoice.metadata ?? {}) as Record<string, string>;
+  }
+
+  const orgId = subMeta.org_id || invoice.metadata?.org_id;
+  if (!orgId) return;
+  await setWebhookEventOrg(eventId, orgId);
+  await setRecurringPlanStatus(orgId, subId, "past_due");
+
+  const email = cleanEmail(subMeta.constituent_email) || cleanEmail(invoice.customer_email);
+  if (!email) return;
+  const { constituent } = await upsertConstituentByEmail(orgId, { email, source: "web_donation" });
+  const custId = idOf(invoice.customer);
+  if (custId) await setConstituentStripeCustomer(orgId, constituent.id, custId);
+
+  try {
+    await sendRecurringDunning(orgId, constituent.id);
+  } catch (err) {
+    console.error("[webhook] dunning email failed (plan marked past_due):", err);
+  }
 }
 
 async function handleSubscriptionUpsert(eventId: string, sub: Stripe.Subscription) {

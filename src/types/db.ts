@@ -60,6 +60,7 @@ export interface Constituent {
   do_not_contact: boolean;
   email_opt_out: boolean;
   sms_opt_in: boolean;
+  stripe_customer_id: string | null;
   source: string | null;
   created_at: Date;
   updated_at: Date;

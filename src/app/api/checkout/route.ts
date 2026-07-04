@@ -23,6 +23,7 @@ import { getAppealById } from "@/repositories/appeals";
 import { getCampaignByPublicSlug } from "@/repositories/campaigns";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
 import { getMemberBySlug } from "@/repositories/p2pMembers";
+import { findConstituentByEmail } from "@/repositories/constituents";
 import { grossUpForFees } from "@/domain/fees";
 import { rateLimit, clientIp, tooManyRequests } from "@/lib/rateLimit";
 
@@ -176,6 +177,14 @@ export async function POST(req: NextRequest) {
   const cancel = `${baseUrl}/give/${org.slug}?canceled=1`;
   const connectedAccount = org.stripe_account_id;
 
+  // Reuse the donor's existing Stripe customer if we've seen them, so all their
+  // gifts + subscriptions consolidate under one customer (enables the billing
+  // portal). Otherwise Stripe creates one from customer_email and the webhook
+  // captures it onto the constituent for next time.
+  const existing = await findConstituentByEmail(org.id, email);
+  const customerParam: { customer: string } | { customer_email: string } =
+    existing?.stripe_customer_id ? { customer: existing.stripe_customer_id } : { customer_email: email };
+
   const stripe = getStripe();
   try {
     let session: Stripe.Checkout.Session;
@@ -183,7 +192,7 @@ export async function POST(req: NextRequest) {
     if (body.frequency === "one_time") {
       session = await stripe.checkout.sessions.create({
         mode: "payment",
-        customer_email: email,
+        ...customerParam,
         line_items: [
           {
             quantity: 1,
@@ -210,7 +219,7 @@ export async function POST(req: NextRequest) {
     } else {
       session = await stripe.checkout.sessions.create({
         mode: "subscription",
-        customer_email: email,
+        ...customerParam,
         line_items: [
           {
             quantity: 1,

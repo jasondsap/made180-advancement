@@ -34,3 +34,31 @@ export function verifyUnsubscribeToken(token: string): { orgId: string; constitu
   if (!orgId || !constituentId) return null;
   return { orgId, constituentId };
 }
+
+/**
+ * Signed "manage my recurring gift" tokens for the donor billing portal
+ * (/manage/[token]). Same HMAC scheme, but a `manage:` purpose prefix so an
+ * unsubscribe token can't be replayed here (or vice-versa).
+ */
+export function makeManageBillingToken(orgId: string, constituentId: string): string {
+  const payload = `manage:${orgId}:${constituentId}`;
+  return `${b64url(Buffer.from(payload))}.${sign(payload)}`;
+}
+
+export function verifyManageBillingToken(token: string): { orgId: string; constituentId: string } | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  let payload: string;
+  try {
+    payload = Buffer.from(body, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+  const expected = sign(payload);
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  const [purpose, orgId, constituentId] = payload.split(":");
+  if (purpose !== "manage" || !orgId || !constituentId) return null;
+  return { orgId, constituentId };
+}

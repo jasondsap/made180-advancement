@@ -13,7 +13,7 @@ import { usd, fmtDate } from "@/lib/format";
 import type { Interaction, Task } from "@/types/db";
 import {
   addRoleAction, removeRoleAction, addRelationshipAction, removeRelationshipAction, mergeAction,
-  logInteractionAction, deleteInteractionAction,
+  logInteractionAction, deleteInteractionAction, cancelRecurringPlanAction,
 } from "../actions";
 import { createTaskAction, toggleTaskAction, deleteTaskAction } from "../../tasks/actions";
 
@@ -27,6 +27,7 @@ const MSGS: Record<string, [string, string, string]> = {
   rel_notfound: ["#fdecec", "#9b1c1c", "Related constituent not found."],
   rel_error: ["#fdecec", "#9b1c1c", "Could not add relationship."],
   rel_added: ["#edf1ec", "var(--forest)", "Relationship added."],
+  plan_canceled: ["#edf1ec", "var(--forest)", "Recurring plan canceled."],
 };
 
 export default async function ConstituentDetailPage({
@@ -43,6 +44,7 @@ export default async function ConstituentDetailPage({
 
   const con = await getConstituentById(ctx.orgId, id);
   if (!con) notFound();
+  const isManager = canManage(ctx.role);
 
   const [ltv, gifts, plans, roles, rels, interactions, tasks, members] = await Promise.all([
     constituentLtv(ctx.orgId, id),
@@ -177,9 +179,21 @@ export default async function ConstituentDetailPage({
       {plans.length > 0 && (
         <section style={{ ...card, marginTop: "1rem" }}>
           <H>Recurring plans</H>
-          {plans.map((p) => (
-            <Row key={p.id} k={`${usd(p.amount_cents)} / ${p.interval}`} v={`${p.status}${p.canceled_at ? ` (canceled ${fmtDate(p.canceled_at)})` : ""}`} />
-          ))}
+          {plans.map((p) => {
+            const cancellable = isManager && p.stripe_subscription_id && (p.status === "active" || p.status === "past_due");
+            return (
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: ".4rem 0", borderTop: "1px solid #f1f2f1" }}>
+                <span>{usd(p.amount_cents)} / {p.interval} <span style={{ color: "#999" }}>· {p.status}{p.canceled_at ? ` (canceled ${fmtDate(p.canceled_at)})` : ""}</span></span>
+                {cancellable && (
+                  <form action={cancelRecurringPlanAction}>
+                    <input type="hidden" name="id" value={id} />
+                    <input type="hidden" name="subId" value={p.stripe_subscription_id ?? ""} />
+                    <button type="submit" style={linkBtn}>cancel</button>
+                  </form>
+                )}
+              </div>
+            );
+          })}
         </section>
       )}
 

@@ -272,6 +272,24 @@ export async function markRefundedByPaymentIntent(
   return rows[0];
 }
 
+/**
+ * Set a gift's status by Stripe PaymentIntent id (dispute lifecycle). Same
+ * documented tenancy exception as markRefundedByPaymentIntent: the PI id is
+ * globally unique and Stripe-trusted, and dispute events carry no org metadata.
+ * A 'disputed' gift falls out of every succeeded-only rollup until resolved.
+ */
+export async function setGiftStatusByPaymentIntent(
+  paymentIntentId: string,
+  status: string,
+): Promise<Gift | undefined> {
+  const rows = (await sql`
+    UPDATE gifts SET status = ${status}
+    WHERE stripe_payment_intent_id = ${paymentIntentId}
+    RETURNING *
+  `) as unknown as Gift[];
+  return rows[0];
+}
+
 export async function listGiftsForConstituent(orgId: string, constituentId: string): Promise<Gift[]> {
   assertOrgId(orgId);
   return (await sql`

@@ -236,6 +236,23 @@ export async function setEmailOptOut(orgId: string, id: string, optOut: boolean)
   await sql`UPDATE constituents SET email_opt_out = ${optOut} WHERE org_id = ${orgId} AND id = ${id}`;
 }
 
+/**
+ * Record the donor's Stripe customer id (first one wins) so later checkouts
+ * reuse it and the donor's whole history/subscriptions live under one customer,
+ * enabling the billing portal. No-op if already set. Called from the webhook.
+ */
+export async function setConstituentStripeCustomer(
+  orgId: string,
+  id: string,
+  customerId: string,
+): Promise<void> {
+  assertOrgId(orgId);
+  await sql`
+    UPDATE constituents SET stripe_customer_id = ${customerId}
+    WHERE org_id = ${orgId} AND id = ${id} AND stripe_customer_id IS NULL
+  `;
+}
+
 export async function listConstituents(
   orgId: string,
   opts: { limit?: number; offset?: number; search?: string } = {},

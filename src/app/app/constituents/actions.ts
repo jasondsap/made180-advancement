@@ -13,6 +13,8 @@ import {
 import { addRole, removeRole } from "@/repositories/attributes";
 import { addRelationship, removeRelationship } from "@/repositories/relationships";
 import { createInteraction, deleteInteraction } from "@/repositories/interactions";
+import { getRecurringPlanBySubscriptionId, setRecurringPlanStatus } from "@/repositories/recurringPlans";
+import { getStripe } from "@/lib/stripe";
 import type { ConstituentType, InteractionType } from "@/types/db";
 
 const INTERACTION_TYPES: InteractionType[] = ["call", "email", "meeting", "note", "text", "mailing"];
@@ -174,6 +176,29 @@ export async function deleteInteractionAction(fd: FormData) {
   const id = str(fd, "id");
   await deleteInteraction(ctx.orgId, str(fd, "interactionId"));
   revalidatePath(`/app/constituents/${id}`);
+}
+
+/** Admin: cancel a donor's recurring plan (subscription) at Stripe. */
+export async function cancelRecurringPlanAction(fd: FormData) {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  if (!canManage(ctx.role)) throw new Error("forbidden");
+  const id = str(fd, "id");
+  const subId = str(fd, "subId");
+  // Validate the subscription belongs to this org before touching Stripe.
+  const plan = await getRecurringPlanBySubscriptionId(ctx.orgId, subId);
+  if (plan) {
+    try {
+      await getStripe().subscriptions.cancel(subId);
+    } catch (err) {
+      // Already-canceled at Stripe is fine; reflect our side either way. The
+      // customer.subscription.deleted webhook will also reconcile.
+      console.error("[cancel plan] Stripe cancel failed (marking canceled anyway):", err);
+    }
+    await setRecurringPlanStatus(ctx.orgId, subId, "canceled", new Date());
+  }
+  revalidatePath(`/app/constituents/${id}`);
+  redirect(`/app/constituents/${id}?msg=plan_canceled`);
 }
 
 async function resolveConstituent(orgId: string, key: string) {
