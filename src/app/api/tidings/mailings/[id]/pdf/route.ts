@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/auth";
+import { getAuthContext, canManage } from "@/lib/auth";
 import { getOrgById } from "@/repositories/orgs";
 import { getMessage } from "@/repositories/engage/messages";
 import { listRecipients } from "@/repositories/engage/recipients";
@@ -21,6 +21,7 @@ type Format = (typeof FORMATS)[number];
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!canManage(ctx.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const { id } = await params;
 
   const fmtParam = new URL(req.url).searchParams.get("format");

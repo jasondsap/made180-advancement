@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { draftAppealCopy } from "@/domain/campaignAsks";
 import { CAMPAIGN_SEGMENTS, type CampaignSegmentKey } from "@/repositories/campaignSegments";
+import { rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,8 @@ export async function POST(req: NextRequest) {
   const auth = await getAuthContext();
   if (!auth) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!canManage(auth.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const rl = await rateLimit(`assistant:${auth.user.id}`, { limit: 20, windowSecs: 60 });
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSecs);
   const body = (await req.json()) as {
     campaignId?: string;
     segmentKey?: string;

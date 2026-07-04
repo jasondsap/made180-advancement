@@ -39,14 +39,23 @@ export async function getUserByEmail(email: string): Promise<UserRow | undefined
   return rows[0];
 }
 
-/** Bind a seeded/pending user row to the real Cognito sub on first login. */
-export async function reconcileCognitoSub(userId: string, sub: string): Promise<UserRow> {
+/**
+ * Bind a seeded/pending user row to the real Cognito sub on first login.
+ *
+ * Only rebinds rows still holding a `seed-pending:` sentinel — NEVER an
+ * already-claimed row. Without this guard, anyone who registers a Cognito
+ * identity with an email matching an existing user (incl. the seeded
+ * super_admin) would take over that account. Returns undefined when the row is
+ * already claimed (or missing); callers then fall through to creating a fresh,
+ * membership-less user with no access.
+ */
+export async function reconcileCognitoSub(userId: string, sub: string): Promise<UserRow | undefined> {
   const rows = (await sql`
-    UPDATE users SET cognito_sub = ${sub} WHERE id = ${userId} RETURNING *
+    UPDATE users SET cognito_sub = ${sub}
+    WHERE id = ${userId} AND cognito_sub LIKE 'seed-pending:%'
+    RETURNING *
   `) as unknown as UserRow[];
-  const row = rows[0];
-  if (!row) throw new Error(`reconcileCognitoSub: user ${userId} not found`);
-  return row;
+  return rows[0];
 }
 
 /** Provision a bare user on first login (no memberships → no access until granted). */

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthContext } from "@/lib/auth";
+import { getAuthContext, canManage } from "@/lib/auth";
 import { listFundraisers } from "@/repositories/fundraisers";
 
 /** CSV export of the org's fundraisers with derived raised/supporter totals. */
@@ -13,6 +13,7 @@ function csvCell(v: unknown): string {
 export async function GET() {
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!canManage(ctx.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const rows = await listFundraisers(ctx.orgId, { includeArchived: true });
   const header = ["Title", "Type", "Status", "Supporters", "Raised (USD)", "Goal (USD)", "Slug", "Created"];

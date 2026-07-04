@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAuthContext } from "@/lib/auth";
+import { getAuthContext, canManage } from "@/lib/auth";
 import { getOrgById } from "@/repositories/orgs";
 import { getCampaignById, getPriorCampaign } from "@/repositories/campaigns";
 import {
@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getAuthContext();
   if (!auth) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!canManage(auth.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const { id } = await params;
 
   const campaign = await getCampaignById(auth.orgId, id);

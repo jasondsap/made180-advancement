@@ -24,6 +24,17 @@ export class TenancyError extends Error {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * True if `v` is a well-formed UUID string. Use to guard lookups that take a
+ * client-supplied id destined for a `uuid` column — Postgres throws
+ * "invalid input syntax for type uuid" on a malformed value, which would crash
+ * a render (e.g. a truncated `?appeal=` tracking link on a public page) instead
+ * of behaving like a normal not-found.
+ */
+export function isUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_RE.test(v);
+}
+
+/**
  * Validate and return the org id. Throws TenancyError if it is missing or not a
  * UUID — which means a bug upstream (e.g. an unresolved session) rather than a
  * normal "not found", so it should surface as a 500, not leak across tenants.

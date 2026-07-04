@@ -187,6 +187,11 @@ async function handleOneTimePaymentIntent(stripe: Stripe, pi: Stripe.PaymentInte
   const orgId = m.org_id;
   // A bare PI without our metadata isn't ours to log (e.g. test triggers). Skip.
   if (!orgId) return;
+  // Event tickets carry full metadata on the PI too. If the PI event arrives
+  // before checkout.session.completed, logging it here would issue a tax receipt
+  // for an FMV-carrying ticket and drop the fund/campaign. Event purchases are
+  // recorded only by handleEventSession; skip them here.
+  if (m.kind === "event") return;
 
   const email = cleanEmail(m.constituent_email) || cleanEmail(pi.receipt_email);
   if (!email) throw new Error("payment_intent has no email to match a constituent");

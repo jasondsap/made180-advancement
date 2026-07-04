@@ -30,6 +30,11 @@ export interface IssueReceiptResult {
 export async function issueReceipt(orgId: string, giftId: string): Promise<IssueReceiptResult> {
   const gift = await getGiftById(orgId, giftId);
   if (!gift) throw new Error(`issueReceipt: gift ${giftId} not found for org ${orgId}`);
+  // Never issue an official tax receipt for a gift that isn't a completed charge
+  // (guards the admin "resend" path, which otherwise has no status check).
+  if (gift.status !== "succeeded") {
+    throw new Error(`issueReceipt: gift ${giftId} has status '${gift.status}', not 'succeeded'`);
+  }
 
   const org = await getOrgById(orgId);
   if (!org) throw new Error(`issueReceipt: org ${orgId} not found`);

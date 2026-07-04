@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { findConstituentByEmail, getConstituentById } from "@/repositories/constituents";
-import { createPledge, applyPledgePayment } from "@/repositories/pledges";
+import { createPledge, applyPledgePayment, getPledgeById } from "@/repositories/pledges";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const cents = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.round(n * 100) : 0; };
@@ -36,13 +36,22 @@ export async function applyPaymentAction(fd: FormData) {
   const ctx = await getAuthContext();
   if (!ctx) throw new Error("unauthorized");
   const pledgeId = str(fd, "pledgeId");
-  const constituentId = str(fd, "constituentId");
-  const fundId = str(fd, "fundId") || null;
   const amount = cents(str(fd, "amount"));
+  // Derive constituent + fund from the pledge itself (validated against the org);
+  // never trust client-supplied constituentId/fundId, which could mis-attribute
+  // or orphan the resulting gift.
+  const pledge = await getPledgeById(ctx.orgId, pledgeId);
   let msg = "paid";
-  if (amount < 1) msg = "bad_amount";
+  if (!pledge) msg = "pledge_notfound";
+  else if (amount < 1) msg = "bad_amount";
   else {
-    await applyPledgePayment(ctx.orgId, { pledgeId, constituentId, fundId, amountCents: amount, receivedAt: new Date() });
+    await applyPledgePayment(ctx.orgId, {
+      pledgeId: pledge.id,
+      constituentId: pledge.constituent_id,
+      fundId: pledge.fund_id,
+      amountCents: amount,
+      receivedAt: new Date(),
+    });
   }
   revalidatePath("/app/pledges");
   redirect(`/app/pledges?msg=${msg}`);

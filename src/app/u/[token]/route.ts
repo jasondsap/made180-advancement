@@ -1,5 +1,6 @@
 import { verifyUnsubscribeToken } from "@/lib/engageTokens";
 import { setEmailOptOut } from "@/repositories/constituents";
+import { rateLimit, clientIp, tooManyRequests } from "@/lib/rateLimit";
 
 /**
  * Public one-click unsubscribe. No auth — intent is proven by the signed token.
@@ -30,12 +31,16 @@ function page(ok: boolean): Response {
   );
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  const rl = await rateLimit(`unsub:${clientIp(req)}`, { limit: 30, windowSecs: 60 });
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSecs);
   const { token } = await params;
   return page(await optOut(token));
 }
 
-export async function POST(_req: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  const rl = await rateLimit(`unsub:${clientIp(req)}`, { limit: 30, windowSecs: 60 });
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSecs);
   const { token } = await params;
   const ok = await optOut(token);
   return new Response(null, { status: ok ? 204 : 400 });

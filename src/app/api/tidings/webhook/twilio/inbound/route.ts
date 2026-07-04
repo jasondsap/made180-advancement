@@ -20,7 +20,16 @@ export async function POST(req: Request) {
 
   const base = (env().APP_BASE_URL ?? "").replace(/\/$/, "");
   const url = `${base}/api/tidings/webhook/twilio/inbound`;
-  if (env().TWILIO_AUTH_TOKEN && !validateTwilioSignature(url, params, req.headers.get("x-twilio-signature"))) {
+  const token = env().TWILIO_AUTH_TOKEN;
+  if (!token) {
+    // Fail closed in production: a forged inbound "START"/"STOP" could flip
+    // sms_opt_in for any phone across all orgs. Only skip verification in dev.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[twilio inbound] TWILIO_AUTH_TOKEN not set — rejecting");
+      return NextResponse.json({ error: "webhook not configured" }, { status: 503 });
+    }
+    console.warn("[twilio inbound] no auth token — skipping signature check (non-production)");
+  } else if (!validateTwilioSignature(url, params, req.headers.get("x-twilio-signature"))) {
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 

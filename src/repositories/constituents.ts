@@ -1,5 +1,5 @@
 import { sql, getSql } from "@/lib/db";
-import { assertOrgId, normalizeEmail } from "@/lib/tenancy";
+import { assertOrgId, normalizeEmail, isUuid } from "@/lib/tenancy";
 import type { Constituent, UpsertConstituentInput, ConstituentType, AddressJson } from "@/types/db";
 
 /**
@@ -15,6 +15,7 @@ export async function getConstituentById(
   id: string,
 ): Promise<Constituent | undefined> {
   assertOrgId(orgId);
+  if (!isUuid(id)) return undefined;
   const rows = (await sql`
     SELECT * FROM constituents
     WHERE org_id = ${orgId} AND id = ${id}
@@ -173,9 +174,15 @@ export async function setSmsOptInByPhone(phone: string, optIn: boolean): Promise
 }
 
 /**
- * Merge `sourceId` into `targetId`: reassign all of source's gifts, pledges,
- * recurring plans, attributes, soft-credits, and relationships to target, then
- * delete source. Runs in a single HTTP transaction so it's all-or-nothing.
+ * Merge `sourceId` into `targetId`: reassign ALL of source's records — gifts,
+ * soft-credits, pledges, recurring plans, attributes, relationships, plus the
+ * activity spine (interactions, tasks) and channel history (engage_recipients,
+ * registrants, p2p_members, auction_bids) — to target, then delete source.
+ * Runs in a single HTTP transaction so it's all-or-nothing.
+ *
+ * Every table that references constituents MUST be reassigned here; anything
+ * missed is silently destroyed (interactions/tasks) or orphaned (SET NULL) when
+ * the source row is deleted. Keep this list in sync with new FKs to constituents.
  */
 export async function mergeConstituents(
   orgId: string,
@@ -191,6 +198,21 @@ export async function mergeConstituents(
     s`UPDATE pledges SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
     s`UPDATE recurring_plans SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
     s`UPDATE constituent_attributes SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
+    // Activity spine: NOT NULL + ON DELETE CASCADE, so these are destroyed if not moved.
+    s`UPDATE interactions SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
+    s`UPDATE tasks SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
+    // engage_recipients has a partial unique index on (message_id, constituent_id):
+    // drop source rows that would collide with an existing target row, then move the rest.
+    s`DELETE FROM engage_recipients er
+        WHERE er.org_id = ${orgId} AND er.constituent_id = ${sourceId}
+          AND EXISTS (
+            SELECT 1 FROM engage_recipients t
+            WHERE t.message_id = er.message_id AND t.constituent_id = ${targetId}
+          )`,
+    s`UPDATE engage_recipients SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
+    s`UPDATE registrants SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
+    s`UPDATE p2p_members SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
+    s`UPDATE auction_bids SET constituent_id = ${targetId} WHERE org_id = ${orgId} AND constituent_id = ${sourceId}`,
     s`UPDATE constituent_relationships SET from_id = ${targetId} WHERE org_id = ${orgId} AND from_id = ${sourceId}`,
     s`UPDATE constituent_relationships SET to_id = ${targetId} WHERE org_id = ${orgId} AND to_id = ${sourceId}`,
     // drop any self-relationships created by the merge

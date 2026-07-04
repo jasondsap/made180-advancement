@@ -1,5 +1,5 @@
 import { sql } from "@/lib/db";
-import { assertOrgId } from "@/lib/tenancy";
+import { assertOrgId, isUuid } from "@/lib/tenancy";
 
 export const APPEAL_CHANNELS = ["web", "email", "event", "mail", "phone"] as const;
 
@@ -40,6 +40,9 @@ export async function listAppealsForCampaign(orgId: string, campaignId: string):
 
 export async function getAppealById(orgId: string, id: string): Promise<Appeal | undefined> {
   assertOrgId(orgId);
+  // A malformed id (e.g. a truncated ?appeal= link hitting a public page) is a
+  // normal not-found, not a 500 — guard before it reaches the uuid column.
+  if (!isUuid(id)) return undefined;
   const rows = (await sql`SELECT * FROM appeals WHERE org_id = ${orgId} AND id = ${id} LIMIT 1`) as unknown as Appeal[];
   return rows[0];
 }

@@ -13,6 +13,7 @@ import { requireEnv } from "@/lib/env";
 import { getOrgBySlug } from "@/repositories/orgs";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
 import { listPublicTicketTypes } from "@/repositories/ticketTypes";
+import { rateLimit, clientIp, tooManyRequests } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,9 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rl = await rateLimit(`events-checkout:${clientIp(req)}`, { limit: 15, windowSecs: 60 });
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSecs);
+
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());

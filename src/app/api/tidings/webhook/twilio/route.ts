@@ -24,7 +24,15 @@ export async function POST(req: Request) {
 
   const base = (env().APP_BASE_URL ?? "").replace(/\/$/, "");
   const url = `${base}/api/tidings/webhook/twilio`;
-  if (env().TWILIO_AUTH_TOKEN && !validateTwilioSignature(url, params, req.headers.get("x-twilio-signature"))) {
+  const token = env().TWILIO_AUTH_TOKEN;
+  if (!token) {
+    // Fail closed in production: unsigned status callbacks could forge delivery data.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[twilio webhook] TWILIO_AUTH_TOKEN not set — rejecting");
+      return NextResponse.json({ error: "webhook not configured" }, { status: 503 });
+    }
+    console.warn("[twilio webhook] no auth token — skipping signature check (non-production)");
+  } else if (!validateTwilioSignature(url, params, req.headers.get("x-twilio-signature"))) {
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 

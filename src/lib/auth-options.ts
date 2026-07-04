@@ -46,12 +46,18 @@ export function getAuthOptions(): NextAuthOptions {
     async signIn({ account, profile }) {
       const sub = account?.providerAccountId;
       if (!sub) return false;
-      const email = (profile as { email?: string } | undefined)?.email;
-      const name = (profile as { name?: string } | undefined)?.name;
+      const p = profile as { email?: string; name?: string; email_verified?: boolean | string } | undefined;
+      const email = p?.email;
+      const name = p?.name;
+      // Cognito returns email_verified as a boolean in the id_token (string in
+      // some flows). Only a verified email may claim a pre-provisioned row.
+      const emailVerified = p?.email_verified === true || p?.email_verified === "true";
       // Reconcile/create the platform user row before the session is used.
       let user = await getUserByCognitoSub(sub);
-      if (!user && email) {
+      if (!user && email && emailVerified) {
         const byEmail = await getUserByEmail(email);
+        // reconcileCognitoSub only rebinds seed-pending rows; returns undefined
+        // if the email already belongs to a claimed account (no takeover).
         if (byEmail) user = await reconcileCognitoSub(byEmail.id, sub);
       }
       if (!user) await createUserFromCognito(sub, email ?? "", name ?? null);

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAuthContext } from "@/lib/auth";
+import { getAuthContext, canManage } from "@/lib/auth";
 import { getOrgById } from "@/repositories/orgs";
 import { getConstituentById } from "@/repositories/constituents";
 import { listGiftsForConstituent } from "@/repositories/gifts";
@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest, ctxArg: { params: Promise<{ constituentId: string }> }) {
   const auth = await getAuthContext();
   if (!auth) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!canManage(auth.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const { constituentId } = await ctxArg.params;
   const year = parseInt(req.nextUrl.searchParams.get("year") ?? "", 10) || new Date().getUTCFullYear();
 

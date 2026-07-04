@@ -9,6 +9,7 @@ import { getOrgBySlug } from "@/repositories/orgs";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
 import { getItemPublic, highBid, insertBid } from "@/repositories/auctions";
 import { upsertConstituentByEmail } from "@/repositories/constituents";
+import { rateLimit, clientIp, tooManyRequests } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,9 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rl = await rateLimit(`auction-bid:${clientIp(req)}`, { limit: 30, windowSecs: 60 });
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSecs);
+
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());

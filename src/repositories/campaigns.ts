@@ -1,5 +1,5 @@
 import { sql } from "@/lib/db";
-import { assertOrgId } from "@/lib/tenancy";
+import { assertOrgId, isUuid } from "@/lib/tenancy";
 
 export const CAMPAIGN_CATEGORIES = ["annual", "capital", "event", "giving_day", "memorial"] as const;
 export type CampaignCategory = (typeof CAMPAIGN_CATEGORIES)[number];
@@ -27,6 +27,7 @@ export async function listCampaigns(orgId: string): Promise<Campaign[]> {
 
 export async function getCampaignById(orgId: string, id: string): Promise<Campaign | undefined> {
   assertOrgId(orgId);
+  if (!isUuid(id)) return undefined;
   const rows = (await sql`SELECT * FROM campaigns WHERE org_id = ${orgId} AND id = ${id} LIMIT 1`) as unknown as Campaign[];
   return rows[0];
 }

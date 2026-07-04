@@ -1,5 +1,5 @@
 import { sql, getSql } from "@/lib/db";
-import { assertOrgId } from "@/lib/tenancy";
+import { assertOrgId, isUuid } from "@/lib/tenancy";
 
 export interface Pledge {
   id: string;
@@ -28,6 +28,13 @@ export async function listPledges(orgId: string): Promise<PledgeWithDonor[]> {
     WHERE p.org_id = ${orgId}
     ORDER BY p.created_at DESC
   `) as unknown as PledgeWithDonor[];
+}
+
+export async function getPledgeById(orgId: string, id: string): Promise<Pledge | undefined> {
+  assertOrgId(orgId);
+  if (!isUuid(id)) return undefined;
+  const rows = (await sql`SELECT * FROM pledges WHERE org_id = ${orgId} AND id = ${id} LIMIT 1`) as unknown as Pledge[];
+  return rows[0];
 }
 
 export async function createPledge(

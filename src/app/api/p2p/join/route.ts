@@ -9,6 +9,7 @@ import { getOrgBySlug } from "@/repositories/orgs";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
 import { createMember, memberSlugExists } from "@/repositories/p2pMembers";
 import { upsertConstituentByEmail } from "@/repositories/constituents";
+import { rateLimit, clientIp, tooManyRequests } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,9 @@ const BodySchema = z.object({
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 
 export async function POST(req: NextRequest) {
+  const rl = await rateLimit(`p2p-join:${clientIp(req)}`, { limit: 5, windowSecs: 60 });
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSecs);
+
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());

@@ -40,7 +40,15 @@ function verifySvix(secret: string, headers: Headers, body: string): boolean {
 export async function POST(req: Request) {
   const raw = await req.text();
   const secret = env().RESEND_WEBHOOK_SECRET;
-  if (secret && !verifySvix(secret, req.headers, raw)) {
+  if (!secret) {
+    // Fail closed in production: an unsigned webhook can forge delivery data and
+    // mass-suppress constituents (email_opt_out). Only skip verification in dev.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[resend webhook] RESEND_WEBHOOK_SECRET not set — rejecting");
+      return NextResponse.json({ error: "webhook not configured" }, { status: 503 });
+    }
+    console.warn("[resend webhook] no secret set — skipping signature check (non-production)");
+  } else if (!verifySvix(secret, req.headers, raw)) {
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 

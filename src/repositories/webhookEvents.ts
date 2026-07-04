@@ -10,8 +10,15 @@ import { sql } from "@/lib/db";
  */
 
 /**
- * Atomically claim an event. Returns true if WE inserted it (first delivery),
- * false if it already existed (a Stripe retry/replay → caller should ack & skip).
+ * Atomically claim an event. Returns true if WE claimed it (first delivery, OR a
+ * retry of a previously-FAILED event), false if it already exists in a terminal
+ * or in-flight state (`processed`/`received` → caller should ack & skip).
+ *
+ * The `error` re-claim is critical: without it, a transient failure while
+ * recording a gift (DB blip, Stripe API timeout) marks the row `error` and 500s
+ * so Stripe retries — but a plain DO NOTHING would then treat the retry as a
+ * duplicate and ack it, losing the gift forever. Reprocessing is safe because
+ * the downstream gift insert is idempotent on the payment-intent id.
  */
 export async function claimWebhookEvent(e: {
   stripeEventId: string;
@@ -28,7 +35,12 @@ export async function claimWebhookEvent(e: {
       ${e.orgId ?? null},
       'received'
     )
-    ON CONFLICT (stripe_event_id) DO NOTHING
+    ON CONFLICT (stripe_event_id) DO UPDATE
+      SET status = 'received',
+          payload = EXCLUDED.payload,
+          org_id = COALESCE(EXCLUDED.org_id, webhook_events.org_id),
+          processed_at = NULL
+      WHERE webhook_events.status = 'error'
     RETURNING id
   `) as unknown as Array<{ id: string }>;
   return rows.length > 0;

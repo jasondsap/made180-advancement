@@ -29,6 +29,11 @@ const MIGRATIONS_DIR = join(__dirname, "..", "migrations");
 const connectionString = process.env.DATABASE_URL_UNPOOLED;
 const statusOnly = process.argv.includes("--status");
 
+// Session-level advisory lock so two concurrent runners (e.g. parallel Amplify
+// branch builds both running `npm run migrate` in preBuild) serialize instead of
+// interleaving DDL and half-applying a migration. Arbitrary fixed key.
+const MIGRATION_LOCK_KEY = 4923004;
+
 function fail(msg: string): never {
   console.error(`\n✖ ${msg}\n`);
   process.exit(1);
@@ -58,6 +63,12 @@ async function main() {
   const files = listMigrationFiles();
   const client = new Client({ connectionString });
   await client.connect();
+
+  // Serialize concurrent migration runs. Read-only status doesn't mutate, so it
+  // runs lock-free. The lock auto-releases if the session dies mid-run.
+  if (!statusOnly) {
+    await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_KEY]);
+  }
 
   try {
     await client.query(`
@@ -127,6 +138,13 @@ async function main() {
 
     console.log(`\nApplied ${pending.length} migration(s).\n`);
   } finally {
+    if (!statusOnly) {
+      try {
+        await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_KEY]);
+      } catch {
+        // Session is ending anyway; the lock releases with it.
+      }
+    }
     await client.end();
   }
 }
