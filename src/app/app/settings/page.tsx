@@ -96,6 +96,22 @@ export default async function SettingsPage({
         <div><button type="submit" style={btnPrimary}>Save settings</button></div>
       </form>
 
+      <section style={{ ...fs, marginTop: "1rem" }}>
+        <legend style={lg}>Embed your donation form</legend>
+        <p style={{ fontSize: ".88rem", margin: "0 0 .6rem", color: "#555" }}>
+          Paste this snippet into any page on your own website to accept gifts there. Donors are
+          taken to Stripe&apos;s secure checkout to pay.
+        </p>
+        <pre style={{ background: "#f4f1ea", border: "1px solid var(--app-border)", borderRadius: 8, padding: ".75rem .9rem", fontSize: ".78rem", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+{`<iframe src="${(process.env.APP_BASE_URL ?? "").replace(/\/$/, "")}/embed/${org.slug}"
+  style="width:100%;max-width:520px;height:1150px;border:none;border-radius:12px"
+  title="Donate to ${org.legal_name}"></iframe>`}
+        </pre>
+        <p style={{ fontSize: ".78rem", color: "#999", margin: ".5rem 0 0" }}>
+          Add <code>?appeal=&lt;appeal-id&gt;</code> to the URL to attribute embedded gifts to a specific appeal.
+        </p>
+      </section>
+
       {canvaEnabled && (
         <section style={{ ...fs, marginTop: "1rem" }}>
           <legend style={lg}>Integrations</legend>

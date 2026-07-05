@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getOrgBySlug } from "@/repositories/orgs";
 import { getPublishedFundraiser } from "@/repositories/fundraisers";
-import { createMember, memberSlugExists } from "@/repositories/p2pMembers";
+import { createMember, memberSlugExists, getOrCreateTeam } from "@/repositories/p2pMembers";
 import { upsertConstituentByEmail } from "@/repositories/constituents";
 import { rateLimit, clientIp, tooManyRequests } from "@/lib/rateLimit";
 
@@ -20,6 +20,7 @@ const BodySchema = z.object({
   email: z.string().trim().email(),
   goal: z.number().int().min(0).max(100_000_00).optional(),
   message: z.string().trim().max(2000).optional(),
+  teamName: z.string().trim().max(80).optional(),
 });
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -59,12 +60,16 @@ export async function POST(req: NextRequest) {
     slug = `${base}-${n}`;
   }
 
+  // Optional team: join an existing one or create it on the fly (case-insensitive).
+  const team = body.teamName ? await getOrCreateTeam(org.id, fr.id, body.teamName) : null;
+
   const member = await createMember(org.id, fr.id, {
     name: body.name,
     slug,
     constituentId: constituent.id,
     goalCents: body.goal ?? null,
     message: body.message ?? null,
+    teamId: team?.id ?? null,
   });
 
   return NextResponse.json({ url: `/give/${org.slug}/${fr.slug}/p/${member.slug}`, slug: member.slug });

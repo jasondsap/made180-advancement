@@ -35,6 +35,7 @@ import { getTicketType } from "@/repositories/ticketTypes";
 import { insertRegistrant } from "@/repositories/registrants";
 import { issueReceipt } from "@/domain/receipts";
 import { sendRecurringDunning } from "@/domain/recurringNotices";
+import { sendTributeNotice } from "@/domain/tributeNotice";
 import type { AddressJson, TributeType } from "@/types/db";
 
 /** Loose view of fields whose typing varies across Stripe API versions. */
@@ -79,10 +80,30 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         // One-time only here; subscriptions are logged via invoice.paid (step 7).
+        // Delayed methods (ACH debit etc.) complete with payment_status
+        // 'unpaid' — their gift is recorded by async_payment_succeeded below.
         if (session.mode === "payment" && session.payment_status === "paid") {
           if (session.metadata?.kind === "event") await handleEventSession(stripe, session);
           else await handleOneTimeSession(stripe, session);
         }
+        break;
+      }
+      case "checkout.session.async_payment_succeeded": {
+        // Delayed payment methods (ACH/bank debit) settle days after checkout.
+        // Same handlers as completed — gift insert is idempotent on the PI id.
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "payment") {
+          if (session.metadata?.kind === "event") await handleEventSession(stripe, session);
+          else await handleOneTimeSession(stripe, session);
+        }
+        break;
+      }
+      case "checkout.session.async_payment_failed": {
+        // Nothing was persisted at completion (payment_status wasn't 'paid'),
+        // so there's no gift to roll back — just record which org for the ledger.
+        const session = event.data.object as Stripe.Checkout.Session;
+        const failedOrg = session.metadata?.org_id;
+        if (failedOrg) await setWebhookEventOrg(event.id, failedOrg);
         break;
       }
       case "payment_intent.succeeded": {
@@ -209,6 +230,8 @@ async function handleOneTimeSession(stripe: Stripe, session: Stripe.Checkout.Ses
     p2pMemberId: m.p2p_member_id || null,
     tributeType: asTribute(m.tribute_type),
     tributeName: m.tribute_name || null,
+    tributeNotifyEmail: cleanEmail(m.tribute_notify_email),
+    tributeNotifyMessage: m.tribute_notify_message || null,
     isAnonymous: m.is_anonymous === "true",
   });
 }
@@ -243,6 +266,8 @@ async function handleOneTimePaymentIntent(stripe: Stripe, pi: Stripe.PaymentInte
     p2pMemberId: m.p2p_member_id || null,
     tributeType: asTribute(m.tribute_type),
     tributeName: m.tribute_name || null,
+    tributeNotifyEmail: cleanEmail(m.tribute_notify_email),
+    tributeNotifyMessage: m.tribute_notify_message || null,
     isAnonymous: m.is_anonymous === "true",
   });
 }
@@ -263,6 +288,8 @@ type OneTimeInput = {
   p2pMemberId: string | null;
   tributeType: TributeType | null;
   tributeName: string | null;
+  tributeNotifyEmail?: string | null;
+  tributeNotifyMessage?: string | null;
   isAnonymous: boolean;
 };
 
@@ -305,6 +332,23 @@ async function recordOneTimeGift(stripe: Stripe, input: OneTimeInput) {
     return;
   }
   await issueReceiptBestEffort(input.orgId, gift.id);
+
+  // Tribute "notify someone" eCard — best-effort, only on first creation so a
+  // sibling event can't double-notify.
+  if (input.tributeType && input.tributeName && input.tributeNotifyEmail) {
+    try {
+      await sendTributeNotice({
+        orgId: input.orgId,
+        toEmail: input.tributeNotifyEmail,
+        tributeType: input.tributeType,
+        tributeName: input.tributeName,
+        donorName: input.isAnonymous ? "" : [input.firstName, input.lastName].filter(Boolean).join(" "),
+        message: input.tributeNotifyMessage ?? null,
+      });
+    } catch (err) {
+      console.error(`[webhook] tribute notice failed for gift ${gift.id} (gift saved):`, err);
+    }
+  }
 }
 
 /**

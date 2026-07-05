@@ -58,6 +58,8 @@ const BodySchema = z.object({
   appealId: z.string().uuid().nullable().optional(),
   campaignSlug: z.string().trim().min(1).optional(),
   isAnonymous: z.boolean().optional().default(false),
+  tributeNotifyEmail: z.string().trim().email().max(320).nullable().optional(),
+  tributeNotifyMessage: z.string().trim().max(400).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -163,6 +165,8 @@ export async function POST(req: NextRequest) {
     cover_fees: body.coverFees ? "true" : "false",
     tribute_type: body.tributeType ?? "",
     tribute_name: body.tributeName ?? "",
+    tribute_notify_email: body.tributeType ? (body.tributeNotifyEmail ?? "") : "",
+    tribute_notify_message: body.tributeType ? (body.tributeNotifyMessage ?? "") : "",
     employer: body.employer ?? "",
     donor_address: body.donor.address ? JSON.stringify(body.donor.address) : "",
     appeal_id: appealId,

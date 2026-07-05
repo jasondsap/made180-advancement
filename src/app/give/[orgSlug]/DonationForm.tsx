@@ -50,6 +50,8 @@ export function DonationForm({
   const [showTribute, setShowTribute] = useState(false);
   const [tributeType, setTributeType] = useState<"in_honor" | "in_memory">("in_honor");
   const [tributeName, setTributeName] = useState("");
+  const [tributeNotifyEmail, setTributeNotifyEmail] = useState("");
+  const [tributeNotifyMessage, setTributeNotifyMessage] = useState("");
   const [employer, setEmployer] = useState("");
   const [coverFees, setCoverFees] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -64,6 +66,15 @@ export function DonationForm({
   }, [chip, customAmount]);
 
   const chargeCents = coverFees ? grossUpForFees(amountCents) : amountCents;
+
+  // Recurring upsell: suggest a monthly gift at roughly a quarter of the
+  // one-time amount, rounded to a friendly figure (min $5).
+  const monthlySuggestionCents = useMemo(() => {
+    if (amountCents < 1000) return 0; // too small to split — don't nag
+    const quarter = amountCents / 4;
+    const nice = quarter >= 2500 ? Math.round(quarter / 500) * 500 : Math.round(quarter / 100) * 100;
+    return Math.max(500, nice);
+  }, [amountCents]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,6 +109,8 @@ export function DonationForm({
           },
           tributeType: showTribute ? tributeType : null,
           tributeName: showTribute ? tributeName : null,
+          tributeNotifyEmail: showTribute && tributeNotifyEmail.trim() ? tributeNotifyEmail.trim() : null,
+          tributeNotifyMessage: showTribute && tributeNotifyEmail.trim() && tributeNotifyMessage.trim() ? tributeNotifyMessage.trim() : null,
           employer: employer || null,
           coverFees,
           appealId: appealId ?? null,
@@ -110,7 +123,11 @@ export function DonationForm({
         setSubmitting(false);
         return;
       }
-      window.location.assign(data.url); // redirect to Stripe-hosted checkout
+      // Redirect to Stripe-hosted checkout. When embedded in an iframe (the
+      // /embed widget), navigate the TOP window — Stripe Checkout refuses to
+      // render framed. Setting top.location is permitted cross-origin.
+      const target = window.self !== window.top && window.top ? window.top : window;
+      target.location.assign(data.url);
     } catch {
       setError("Network error. Please try again.");
       setSubmitting(false);
@@ -135,6 +152,18 @@ export function DonationForm({
             One-time
           </SegBtn>
         </div>
+        {frequency === "one_time" && monthlySuggestionCents > 0 && (
+          <div style={{ marginTop: ".6rem", background: "#eef4f0", border: "1px solid #cfe0d6", borderRadius: 8, padding: ".6rem .75rem", fontSize: ".88rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".6rem", flexWrap: "wrap" }}>
+            <span>Steady support goes further — make it {usd(monthlySuggestionCents)}/month instead?</span>
+            <button
+              type="button"
+              onClick={() => { setFrequency("monthly"); setChip(null); setCustomAmount((monthlySuggestionCents / 100).toFixed(2)); }}
+              style={{ border: "1px solid var(--brand)", color: "var(--brand)", background: "#fff", borderRadius: 6, padding: ".3rem .7rem", fontSize: ".85rem", fontWeight: 600, cursor: "pointer" }}
+            >
+              Give monthly
+            </button>
+          </div>
+        )}
       </Fieldset>
 
       {/* Fund — hidden when a fundraiser pins the designation */}
@@ -211,6 +240,22 @@ export function DonationForm({
               <SegBtn active={tributeType === "in_memory"} onClick={() => setTributeType("in_memory")}>In memory of</SegBtn>
             </div>
             <input style={{ ...styles.input, marginTop: ".5rem" }} placeholder="Honoree name" value={tributeName} onChange={(e) => setTributeName(e.target.value)} />
+            <input
+              style={styles.input}
+              type="email"
+              placeholder="Notify someone by email (optional)"
+              value={tributeNotifyEmail}
+              onChange={(e) => setTributeNotifyEmail(e.target.value)}
+            />
+            {tributeNotifyEmail.trim() && (
+              <textarea
+                style={{ ...styles.input, minHeight: 70 }}
+                maxLength={400}
+                placeholder="Add a short personal message (optional)"
+                value={tributeNotifyMessage}
+                onChange={(e) => setTributeNotifyMessage(e.target.value)}
+              />
+            )}
           </div>
         )}
         <input style={{ ...styles.input, marginTop: ".75rem" }} placeholder="Employer (for matching gifts)" value={employer} onChange={(e) => setEmployer(e.target.value)} />

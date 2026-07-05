@@ -13,6 +13,7 @@ import {
   slugExists,
 } from "@/repositories/fundraisers";
 import { createTicketType, updateTicketType, deleteTicketType } from "@/repositories/ticketTypes";
+import { setRegistrantCheckin } from "@/repositories/registrants";
 import { createItem, setItemStatus, deleteItem } from "@/repositories/auctions";
 import type { FundraiserType, FundraiserFeature, FundraiserTheme } from "@/types/db";
 
@@ -187,4 +188,15 @@ export async function deleteAuctionItemAction(fd: FormData) {
   await deleteItem(ctx.orgId, str(fd, "id"));
   revalidatePath(`/app/fundraisers/${fundraiserId}/edit`);
   redirect(`/app/fundraisers/${fundraiserId}/edit`);
+}
+
+/** Event-day check-in toggle (any org role — door volunteers are often staff). */
+export async function toggleCheckinAction(fd: FormData) {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  const fundraiserId = str(fd, "fundraiserId");
+  const q = str(fd, "q");
+  await setRegistrantCheckin(ctx.orgId, str(fd, "id"), str(fd, "to") === "in");
+  revalidatePath(`/app/fundraisers/${fundraiserId}/registrants`);
+  redirect(`/app/fundraisers/${fundraiserId}/registrants${q ? `?q=${encodeURIComponent(q)}` : ""}`);
 }

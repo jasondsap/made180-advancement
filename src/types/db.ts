@@ -87,6 +87,7 @@ export interface P2PMember {
   slug: string;
   goal_cents: number | null;
   message: string | null;
+  team_id: string | null;
   created_at: Date;
 }
 
@@ -142,6 +143,7 @@ export interface Registrant {
   status: string;
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;
+  checked_in_at: Date | null;
   created_at: Date;
 }
 

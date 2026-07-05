@@ -13,6 +13,15 @@ export async function listRegistrants(orgId: string, fundraiserId: string): Prom
   `) as unknown as Registrant[];
 }
 
+/** Event-day check-in: stamp or clear arrival on a registrant line. */
+export async function setRegistrantCheckin(orgId: string, id: string, checkedIn: boolean): Promise<void> {
+  assertOrgId(orgId);
+  await sql`
+    UPDATE registrants SET checked_in_at = ${checkedIn ? new Date().toISOString() : null}
+    WHERE org_id = ${orgId} AND id = ${id}
+  `;
+}
+
 /** Idempotent insert per (checkout session, ticket type) — safe on webhook replay. */
 export async function insertRegistrant(
   orgId: string,

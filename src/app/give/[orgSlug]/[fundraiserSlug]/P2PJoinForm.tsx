@@ -3,11 +3,21 @@
 import { useState, type CSSProperties } from "react";
 
 /** Self-serve "start fundraising" form → creates a p2p member, redirects to their page. */
-export function P2PJoinForm({ orgSlug, fundraiserSlug }: { orgSlug: string; fundraiserSlug: string }) {
+export function P2PJoinForm({
+  orgSlug,
+  fundraiserSlug,
+  teams = [],
+}: {
+  orgSlug: string;
+  fundraiserSlug: string;
+  /** Existing team names for the datalist — a new name creates a new team. */
+  teams?: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [goal, setGoal] = useState("");
+  const [teamName, setTeamName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +35,7 @@ export function P2PJoinForm({ orgSlug, fundraiserSlug }: { orgSlug: string; fund
           name,
           email,
           goal: goal ? Math.round(parseFloat(goal) * 100) : undefined,
+          teamName: teamName.trim() || undefined,
         }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
@@ -50,6 +61,17 @@ export function P2PJoinForm({ orgSlug, fundraiserSlug }: { orgSlug: string; fund
       <input style={input} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} required />
       <input style={input} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       <input style={input} type="number" min="0" step="1" placeholder="Your goal ($, optional)" value={goal} onChange={(e) => setGoal(e.target.value)} />
+      <input
+        style={input}
+        list="p2p-teams"
+        maxLength={80}
+        placeholder="Team (optional — join one or type a new name)"
+        value={teamName}
+        onChange={(e) => setTeamName(e.target.value)}
+      />
+      <datalist id="p2p-teams">
+        {teams.map((t) => <option key={t} value={t} />)}
+      </datalist>
       {error && <p style={{ color: "#b00020", fontSize: ".85rem", margin: 0 }}>{error}</p>}
       <div style={{ display: "flex", gap: ".5rem" }}>
         <button type="submit" disabled={busy} style={btnPrimary}>{busy ? "Creating…" : "Create my page"}</button>
