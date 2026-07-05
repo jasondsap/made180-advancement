@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
 import { getConstituentById } from "@/repositories/constituents";
-import { constituentLtv, listGiftsForConstituent } from "@/repositories/gifts";
+import { constituentLtv, listGiftsForConstituent, listSoftCreditGiftsForConstituent } from "@/repositories/gifts";
+import { listPledgesForConstituent } from "@/repositories/pledges";
 import { listRecurringPlansForConstituent } from "@/repositories/recurringPlans";
 import { listRoles, KNOWN_ROLES } from "@/repositories/attributes";
 import { listRelationships, REL_TYPES } from "@/repositories/relationships";
@@ -46,7 +47,7 @@ export default async function ConstituentDetailPage({
   if (!con) notFound();
   const isManager = canManage(ctx.role);
 
-  const [ltv, gifts, plans, roles, rels, interactions, tasks, members] = await Promise.all([
+  const [ltv, gifts, plans, roles, rels, interactions, tasks, members, pledges, softCredits] = await Promise.all([
     constituentLtv(ctx.orgId, id),
     listGiftsForConstituent(ctx.orgId, id),
     listRecurringPlansForConstituent(ctx.orgId, id),
@@ -55,6 +56,8 @@ export default async function ConstituentDetailPage({
     listInteractions(ctx.orgId, id),
     listTasksForConstituent(ctx.orgId, id),
     listMembersForOrg(ctx.orgId),
+    listPledgesForConstituent(ctx.orgId, id),
+    listSoftCreditGiftsForConstituent(ctx.orgId, id),
   ]);
 
   const name = [con.first_name, con.last_name].filter(Boolean).join(" ") || con.org_name || con.email || "Constituent";
@@ -78,6 +81,7 @@ export default async function ConstituentDetailPage({
           <Row k="Email" v={con.email ?? "—"} />
           <Row k="Phone" v={con.phone ?? "—"} />
           <Row k="Address" v={[addr.line1, addr.line2, [addr.city, addr.state, addr.zip].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "—"} />
+          <Row k="Employer" v={con.employer ?? "—"} />
           <Row k="Do not contact" v={con.do_not_contact ? "Yes" : "No"} />
           <Row k="Source" v={con.source ?? "—"} />
         </section>
@@ -194,6 +198,39 @@ export default async function ConstituentDetailPage({
               </div>
             );
           })}
+        </section>
+      )}
+
+      {/* Pledges */}
+      {pledges.length > 0 && (
+        <section style={{ ...card, marginTop: "1rem" }}>
+          <H>Pledges</H>
+          {pledges.map((p) => (
+            <Row
+              key={p.id}
+              k={`${usd(p.total_cents)}${p.schedule ? ` · ${p.schedule}` : ""}`}
+              v={p.status === "open" ? `${usd(p.balance_cents)} outstanding` : p.status}
+            />
+          ))}
+          <p style={{ fontSize: ".8rem", margin: ".5rem 0 0" }}>
+            <Link href="/app/pledges" style={{ color: "var(--brand)" }}>Manage pledges →</Link>
+          </p>
+        </section>
+      )}
+
+      {/* Soft credits received */}
+      {softCredits.length > 0 && (
+        <section style={{ ...card, marginTop: "1rem" }}>
+          <H>Soft credits ({softCredits.length})</H>
+          <p style={{ color: "#888", fontSize: ".8rem", margin: "0 0 .5rem" }}>
+            Gifts credited to this constituent&apos;s influence (not counted in their lifetime total).
+          </p>
+          {softCredits.map((g) => (
+            <div key={g.id} style={{ display: "flex", justifyContent: "space-between", padding: ".35rem 0", borderTop: "1px solid #f1f2f1", fontSize: ".9rem" }}>
+              <Link href={`/app/gifts/${g.id}`} style={{ color: "var(--brand)", textDecoration: "none" }}>{fmtDate(g.received_at)}</Link>
+              <span>{usd(g.amount_cents)}</span>
+            </div>
+          ))}
         </section>
       )}
 

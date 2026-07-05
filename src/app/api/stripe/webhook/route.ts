@@ -27,8 +27,17 @@ import {
   markWebhookProcessed,
   markWebhookError,
 } from "@/repositories/webhookEvents";
-import { upsertConstituentByEmail, setConstituentStripeCustomer } from "@/repositories/constituents";
-import { insertGift, markRefundedByPaymentIntent, setGiftStatusByPaymentIntent } from "@/repositories/gifts";
+import {
+  upsertConstituentByEmail,
+  setConstituentStripeCustomer,
+  setConstituentEmployer,
+} from "@/repositories/constituents";
+import {
+  insertGift,
+  markRefundedByPaymentIntent,
+  setGiftStatusByPaymentIntent,
+  setGiftRefundCentsByPaymentIntent,
+} from "@/repositories/gifts";
 import { upsertRecurringPlan, setRecurringPlanStatus } from "@/repositories/recurringPlans";
 import { getFundraiser } from "@/repositories/fundraisers";
 import { getTicketType } from "@/repositories/ticketTypes";
@@ -165,11 +174,17 @@ export async function POST(req: NextRequest) {
         break;
       }
       case "charge.refunded": {
+        // Fires for PARTIAL refunds too. Only a full refund flips the gift's
+        // status (removing it from every derived rollup); a partial refund is
+        // recorded on the gift and shown on its detail page.
         const charge = event.data.object as Stripe.Charge;
         const piId = idOf(charge.payment_intent);
         if (piId) {
-          const refunded = await markRefundedByPaymentIntent(piId);
-          if (refunded) await setWebhookEventOrg(event.id, refunded.org_id);
+          const fullyRefunded = (charge.amount_refunded ?? 0) >= (charge.amount ?? 0);
+          const g = fullyRefunded
+            ? await markRefundedByPaymentIntent(piId)
+            : await setGiftRefundCentsByPaymentIntent(piId, charge.amount_refunded ?? 0);
+          if (g) await setWebhookEventOrg(event.id, g.org_id);
         }
         break;
       }
@@ -232,6 +247,7 @@ async function handleOneTimeSession(stripe: Stripe, session: Stripe.Checkout.Ses
     tributeName: m.tribute_name || null,
     tributeNotifyEmail: cleanEmail(m.tribute_notify_email),
     tributeNotifyMessage: m.tribute_notify_message || null,
+    employer: m.employer || null,
     isAnonymous: m.is_anonymous === "true",
   });
 }
@@ -268,6 +284,7 @@ async function handleOneTimePaymentIntent(stripe: Stripe, pi: Stripe.PaymentInte
     tributeName: m.tribute_name || null,
     tributeNotifyEmail: cleanEmail(m.tribute_notify_email),
     tributeNotifyMessage: m.tribute_notify_message || null,
+    employer: m.employer || null,
     isAnonymous: m.is_anonymous === "true",
   });
 }
@@ -290,6 +307,7 @@ type OneTimeInput = {
   tributeName: string | null;
   tributeNotifyEmail?: string | null;
   tributeNotifyMessage?: string | null;
+  employer?: string | null;
   isAnonymous: boolean;
 };
 
@@ -302,6 +320,7 @@ async function recordOneTimeGift(stripe: Stripe, input: OneTimeInput) {
     source: "web_donation",
   });
   if (input.customerId) await setConstituentStripeCustomer(input.orgId, constituent.id, input.customerId);
+  if (input.employer) await setConstituentEmployer(input.orgId, constituent.id, input.employer);
 
   const { feeCents, netCents } = await captureFeeNet(stripe, input.paymentIntentId);
 

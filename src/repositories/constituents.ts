@@ -100,18 +100,18 @@ export async function upsertConstituentByEmail(
  */
 export async function createConstituent(
   orgId: string,
-  input: Omit<UpsertConstituentInput, "email"> & { email?: string | null },
+  input: Omit<UpsertConstituentInput, "email"> & { email?: string | null; employer?: string | null },
 ): Promise<Constituent> {
   assertOrgId(orgId);
   const email = normalizeEmail(input.email ?? null);
   const address = input.address ? JSON.stringify(input.address) : null;
   const rows = (await sql`
     INSERT INTO constituents
-      (org_id, type, first_name, last_name, org_name, email, phone, address_json, source)
+      (org_id, type, first_name, last_name, org_name, email, phone, address_json, employer, source)
     VALUES (
       ${orgId}, ${input.type ?? "individual"}, ${input.firstName ?? null},
       ${input.lastName ?? null}, ${input.orgName ?? null}, ${email},
-      ${input.phone ?? null}, ${address}::jsonb, ${input.source ?? "manual"}
+      ${input.phone ?? null}, ${address}::jsonb, ${input.employer ?? null}, ${input.source ?? "manual"}
     )
     RETURNING *
   `) as unknown as Constituent[];
@@ -128,11 +128,17 @@ export interface UpdateConstituentInput {
   email?: string | null;
   phone?: string | null;
   address?: AddressJson | null;
+  employer?: string | null;
   doNotContact?: boolean;
   emailOptOut?: boolean;
   smsOptIn?: boolean;
 }
 
+/**
+ * Full-record update from the edit form (the only caller passes every field).
+ * `address: null` genuinely CLEARS the address — the old COALESCE pattern made
+ * a blanked address silently keep the previous one.
+ */
 export async function updateConstituent(
   orgId: string,
   id: string,
@@ -140,7 +146,8 @@ export async function updateConstituent(
 ): Promise<Constituent> {
   assertOrgId(orgId);
   const email = input.email !== undefined ? normalizeEmail(input.email) : undefined;
-  const address = input.address !== undefined ? (input.address ? JSON.stringify(input.address) : null) : undefined;
+  const address = input.address ? JSON.stringify(input.address) : null;
+  const clearAddress = input.address !== undefined; // explicit null clears
   const rows = (await sql`
     UPDATE constituents SET
       type           = COALESCE(${input.type ?? null}, type),
@@ -149,7 +156,8 @@ export async function updateConstituent(
       org_name       = ${input.orgName ?? null},
       email          = ${email ?? null},
       phone          = ${input.phone ?? null},
-      address_json   = COALESCE(${address ?? null}::jsonb, address_json),
+      employer       = ${input.employer ?? null},
+      address_json   = CASE WHEN ${clearAddress} THEN ${address}::jsonb ELSE address_json END,
       do_not_contact = COALESCE(${input.doNotContact ?? null}, do_not_contact),
       email_opt_out  = COALESCE(${input.emailOptOut ?? null}, email_opt_out),
       sms_opt_in     = COALESCE(${input.smsOptIn ?? null}, sms_opt_in)
@@ -159,6 +167,15 @@ export async function updateConstituent(
   const row = rows[0];
   if (!row) throw new Error("updateConstituent: not found");
   return row;
+}
+
+/** Enrich-only employer capture (matching gifts) from the checkout webhook. */
+export async function setConstituentEmployer(orgId: string, id: string, employer: string): Promise<void> {
+  assertOrgId(orgId);
+  await sql`
+    UPDATE constituents SET employer = ${employer.slice(0, 200)}
+    WHERE org_id = ${orgId} AND id = ${id} AND employer IS NULL
+  `;
 }
 
 /**

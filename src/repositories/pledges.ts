@@ -81,17 +81,39 @@ export async function pledgeSummary(orgId: string): Promise<PledgeSummary> {
 /**
  * Apply a payment against a pledge: insert a 'pledge' gift linked to it and draw
  * down the balance, marking it fulfilled when fully paid. Atomic transaction.
+ * The gift inherits the pledge's fund AND campaign so pledge revenue attributes
+ * to campaign dashboards (previously campaign was dropped).
  */
 export async function applyPledgePayment(
   orgId: string,
-  args: { pledgeId: string; constituentId: string; fundId: string | null; amountCents: number; receivedAt: Date },
+  args: { pledgeId: string; constituentId: string; fundId: string | null; campaignId: string | null; amountCents: number; receivedAt: Date },
 ): Promise<void> {
   assertOrgId(orgId);
   const s = getSql();
   await s.transaction([
-    s`INSERT INTO gifts (org_id, constituent_id, fund_id, pledge_id, gift_type, amount_cents, currency, status, received_at)
-      VALUES (${orgId}, ${args.constituentId}, ${args.fundId}, ${args.pledgeId}, 'pledge', ${args.amountCents}, 'usd', 'succeeded', ${args.receivedAt.toISOString()})`,
+    s`INSERT INTO gifts (org_id, constituent_id, fund_id, campaign_id, pledge_id, gift_type, amount_cents, currency, status, received_at)
+      VALUES (${orgId}, ${args.constituentId}, ${args.fundId}, ${args.campaignId}, ${args.pledgeId}, 'pledge', ${args.amountCents}, 'usd', 'succeeded', ${args.receivedAt.toISOString()})`,
     s`UPDATE pledges SET balance_cents = GREATEST(0, balance_cents - ${args.amountCents}) WHERE org_id = ${orgId} AND id = ${args.pledgeId}`,
     s`UPDATE pledges SET status = 'fulfilled' WHERE org_id = ${orgId} AND id = ${args.pledgeId} AND balance_cents <= 0`,
   ]);
+}
+
+/** Write off an open pledge (won't be collected) or reopen a written-off one. */
+export async function setPledgeStatus(
+  orgId: string,
+  id: string,
+  status: "open" | "written_off",
+): Promise<void> {
+  assertOrgId(orgId);
+  await sql`
+    UPDATE pledges SET status = ${status}
+    WHERE org_id = ${orgId} AND id = ${id} AND status IN ('open', 'written_off')
+  `;
+}
+
+export async function listPledgesForConstituent(orgId: string, constituentId: string): Promise<Pledge[]> {
+  assertOrgId(orgId);
+  return (await sql`
+    SELECT * FROM pledges WHERE org_id = ${orgId} AND constituent_id = ${constituentId} ORDER BY created_at DESC
+  `) as unknown as Pledge[];
 }

@@ -63,6 +63,7 @@ export interface Constituent {
   email_opt_out: boolean;
   sms_opt_in: boolean;
   stripe_customer_id: string | null;
+  employer: string | null;
   source: string | null;
   created_at: Date;
   updated_at: Date;
@@ -202,6 +203,7 @@ export interface Gift {
   benefit_fmv_cents: number | null;
   benefit_description: string | null;
   is_anonymous: boolean;
+  refund_cents: number | null;
   receipt_sent_at: Date | null;
   receipt_number: string | null;
   notes: string | null;

@@ -290,6 +290,118 @@ export async function setGiftStatusByPaymentIntent(
   return rows[0];
 }
 
+/** Record a PARTIAL refund amount; status stays as-is (full refunds flip status). */
+export async function setGiftRefundCentsByPaymentIntent(
+  paymentIntentId: string,
+  refundCents: number,
+): Promise<Gift | undefined> {
+  const rows = (await sql`
+    UPDATE gifts SET refund_cents = LEAST(${refundCents}, amount_cents)
+    WHERE stripe_payment_intent_id = ${paymentIntentId}
+    RETURNING *
+  `) as unknown as Gift[];
+  return rows[0];
+}
+
+export interface UpdateGiftInput {
+  fundId: string | null;
+  campaignId: string | null;
+  appealId: string | null;
+  isAnonymous: boolean;
+  softCreditId: string | null;
+  notes: string | null;
+  // Money/date/type are only honored for NON-Stripe gifts (see updateGift).
+  amountCents?: number;
+  receivedAt?: Date | null;
+  giftType?: string;
+}
+
+/**
+ * Edit a gift. Attribution (fund/campaign/appeal/anonymous/soft credit/notes)
+ * is always editable; amount, date, and type only change when the gift has no
+ * Stripe payment behind it — a Stripe-backed gift's financials mirror the
+ * charge and must not be hand-edited (use refunds).
+ */
+export async function updateGift(orgId: string, id: string, input: UpdateGiftInput): Promise<Gift | undefined> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    UPDATE gifts SET
+      fund_id        = ${input.fundId},
+      campaign_id    = ${input.campaignId},
+      appeal_id      = ${input.appealId},
+      is_anonymous   = ${input.isAnonymous},
+      soft_credit_id = ${input.softCreditId},
+      notes          = ${input.notes},
+      amount_cents = CASE WHEN stripe_payment_intent_id IS NULL AND ${input.amountCents ?? null}::int IS NOT NULL
+                          THEN ${input.amountCents ?? null}::int ELSE amount_cents END,
+      received_at  = CASE WHEN stripe_payment_intent_id IS NULL AND ${input.receivedAt ? input.receivedAt.toISOString() : null}::timestamptz IS NOT NULL
+                          THEN ${input.receivedAt ? input.receivedAt.toISOString() : null}::timestamptz ELSE received_at END,
+      gift_type    = CASE WHEN stripe_payment_intent_id IS NULL AND ${input.giftType ?? null}::text IS NOT NULL
+                          THEN ${input.giftType ?? null}::text ELSE gift_type END
+    WHERE org_id = ${orgId} AND id = ${id}
+    RETURNING *
+  `) as unknown as Gift[];
+  return rows[0];
+}
+
+/**
+ * Void a manually-entered gift (data-entry mistakes). Stripe-backed gifts are
+ * refused — money actually moved; refund instead. 'voided' drops out of every
+ * succeeded-only rollup automatically.
+ */
+export async function voidGift(orgId: string, id: string): Promise<Gift | undefined> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    UPDATE gifts SET status = 'voided'
+    WHERE org_id = ${orgId} AND id = ${id} AND stripe_payment_intent_id IS NULL
+    RETURNING *
+  `) as unknown as Gift[];
+  return rows[0];
+}
+
+export interface YearGiftRow {
+  constituent_id: string;
+  donor_first: string | null;
+  donor_last: string | null;
+  donor_org: string | null;
+  donor_email: string | null;
+  donor_address: unknown;
+  fund_name: string | null;
+  amount_cents: number;
+  benefit_fmv_cents: number | null;
+  received_at: Date;
+}
+
+/** All succeeded gifts in a calendar year with donor + fund info (batch statements). */
+export async function listSucceededGiftsForYear(orgId: string, year: number): Promise<YearGiftRow[]> {
+  assertOrgId(orgId);
+  return (await sql`
+    SELECT g.constituent_id,
+           c.first_name AS donor_first, c.last_name AS donor_last, c.org_name AS donor_org,
+           c.email AS donor_email, c.address_json AS donor_address,
+           f.name AS fund_name,
+           g.amount_cents, g.benefit_fmv_cents, g.received_at
+    FROM gifts g
+    JOIN constituents c ON c.id = g.constituent_id AND c.org_id = ${orgId}
+    LEFT JOIN funds f ON f.id = g.fund_id AND f.org_id = ${orgId}
+    WHERE g.org_id = ${orgId} AND g.status = 'succeeded'
+      AND g.received_at >= make_date(${year}, 1, 1)
+      AND g.received_at < make_date(${year + 1}, 1, 1)
+    ORDER BY c.last_name NULLS LAST, c.first_name NULLS LAST, g.received_at
+    LIMIT 50000
+  `) as unknown as YearGiftRow[];
+}
+
+/** Gifts soft-credited to this constituent (e.g. a matched or influenced gift). */
+export async function listSoftCreditGiftsForConstituent(orgId: string, constituentId: string): Promise<Gift[]> {
+  assertOrgId(orgId);
+  return (await sql`
+    SELECT * FROM gifts
+    WHERE org_id = ${orgId} AND soft_credit_id = ${constituentId}
+    ORDER BY received_at DESC NULLS LAST, created_at DESC
+  `) as unknown as Gift[];
+}
+
 export async function listGiftsForConstituent(orgId: string, constituentId: string): Promise<Gift[]> {
   assertOrgId(orgId);
   return (await sql`

@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAuthContext, canManage } from "@/lib/auth";
-import { upsertConstituentByEmail, createConstituent } from "@/repositories/constituents";
-import { insertGift, getGiftById, markRefunded } from "@/repositories/gifts";
+import { upsertConstituentByEmail, createConstituent, findConstituentByEmail, getConstituentById } from "@/repositories/constituents";
+import { insertGift, getGiftById, markRefunded, updateGift, voidGift } from "@/repositories/gifts";
 import { getAppealById } from "@/repositories/appeals";
+import { getFundById } from "@/repositories/funds";
+import { getCampaignById } from "@/repositories/campaigns";
 import { issueReceipt } from "@/domain/receipts";
 import { getStripe } from "@/lib/stripe";
 import type { GiftType, GiftStatus, AddressJson } from "@/types/db";
@@ -60,12 +62,15 @@ export async function createManualGift(formData: FormData) {
     }
 
     // Attribution: an appeal implies its campaign when none was chosen
-    // (mirrors the checkout rule).
+    // (mirrors the checkout rule). Fund/campaign ids are validated against the
+    // org before insert (previously trusted from the client unverified).
     if (appealId) {
       const appeal = await getAppealById(orgId, appealId);
       if (!appeal) throw new Error("invalid appeal");
       if (!campaignId) campaignId = appeal.campaign_id;
     }
+    if (fundId && !(await getFundById(orgId, fundId))) throw new Error("invalid fund");
+    if (campaignId && !(await getCampaignById(orgId, campaignId))) throw new Error("invalid campaign");
 
     const benefitDollars = parseFloat(str(formData, "benefitFmv"));
     const benefitFmvCents = Number.isFinite(benefitDollars) && benefitDollars > 0 ? Math.round(benefitDollars * 100) : null;
@@ -100,6 +105,69 @@ export async function createManualGift(formData: FormData) {
   }
   revalidatePath("/app/gifts");
   redirect(`/app/gifts/${result.giftId}?msg=created`);
+}
+
+/**
+ * Edit a gift's attribution (always) and money/date/type (manual gifts only —
+ * the repository enforces the Stripe lock). Admin only. Soft credit accepts a
+ * constituent email or UUID, resolved + validated against the org.
+ */
+export async function updateGiftAction(formData: FormData) {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  if (!canManage(ctx.role)) throw new Error("forbidden");
+  const giftId = str(formData, "giftId");
+
+  // Resolve soft credit: blank clears; else email or UUID must match someone.
+  const softKey = str(formData, "softCredit");
+  let softCreditId: string | null = null;
+  if (softKey) {
+    const con = /^[0-9a-f-]{36}$/i.test(softKey)
+      ? await getConstituentById(ctx.orgId, softKey)
+      : await findConstituentByEmail(ctx.orgId, softKey);
+    if (!con) redirect(`/app/gifts/${giftId}/edit?error=${encodeURIComponent("Soft-credit constituent not found")}`);
+    softCreditId = con!.id;
+  }
+
+  // Validate attribution ids against the org (asymmetric-trust fix: fund and
+  // campaign were previously inserted unverified).
+  const fundId = str(formData, "fundId") || null;
+  const campaignId = str(formData, "campaignId") || null;
+  const appealId = str(formData, "appealId") || null;
+  if (appealId && !(await getAppealById(ctx.orgId, appealId))) throw new Error("invalid appeal");
+  if (fundId && !(await getFundById(ctx.orgId, fundId))) throw new Error("invalid fund");
+  if (campaignId && !(await getCampaignById(ctx.orgId, campaignId))) throw new Error("invalid campaign");
+
+  const dollars = parseFloat(str(formData, "amount"));
+  const receivedAtRaw = str(formData, "receivedAt");
+  const giftType = str(formData, "giftType");
+
+  await updateGift(ctx.orgId, giftId, {
+    fundId,
+    campaignId,
+    appealId,
+    isAnonymous: formData.get("isAnonymous") === "on",
+    softCreditId,
+    notes: str(formData, "notes") || null,
+    amountCents: Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : undefined,
+    receivedAt: receivedAtRaw ? new Date(receivedAtRaw) : undefined,
+    giftType: giftType && MANUAL_TYPES.includes(giftType as GiftType) ? giftType : undefined,
+  });
+  revalidatePath(`/app/gifts/${giftId}`);
+  revalidatePath("/app/gifts");
+  redirect(`/app/gifts/${giftId}?msg=saved`);
+}
+
+/** Void a manually-entered gift (data-entry mistake). Admin only; Stripe gifts refuse. */
+export async function voidGiftAction(formData: FormData) {
+  const ctx = await getAuthContext();
+  if (!ctx) throw new Error("unauthorized");
+  if (!canManage(ctx.role)) throw new Error("forbidden");
+  const giftId = str(formData, "giftId");
+  const voided = await voidGift(ctx.orgId, giftId);
+  revalidatePath(`/app/gifts/${giftId}`);
+  revalidatePath("/app/gifts");
+  redirect(`/app/gifts/${giftId}?msg=${voided ? "voided" : "void_error"}`);
 }
 
 /** Refund a gift. Sensitive — org_admin/super_admin only. Issues a Stripe refund when applicable. */

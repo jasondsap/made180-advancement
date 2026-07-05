@@ -35,6 +35,7 @@ export function ConstituentForm({
           <Field label="Email"><input name="email" type="email" defaultValue={defaults?.email ?? ""} style={inp} /></Field>
           <Field label="Phone"><input name="phone" defaultValue={defaults?.phone ?? ""} style={inp} /></Field>
         </Row>
+        <Field label="Employer (for matching gifts)"><input name="employer" defaultValue={defaults?.employer ?? ""} style={inp} /></Field>
         {defaults?.id && (
           <div style={{ display: "grid", gap: ".4rem" }}>
             <label style={{ display: "flex", gap: ".5rem", alignItems: "center", fontSize: ".9rem" }}>

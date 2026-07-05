@@ -23,6 +23,24 @@ function brandRgb(hex: string | null | undefined): [number, number, number] {
 
 export function buildYearEndStatementPdf(data: YearEndData): Buffer {
   const doc = new jsPDF({ unit: "pt", format: "letter" });
+  renderStatement(doc, data);
+  return Buffer.from(doc.output("arraybuffer"));
+}
+
+/**
+ * Batch: one document, one statement (page-set) per donor — the January "run
+ * statements for everyone" job, printable + mailable in one download.
+ */
+export function buildYearEndBatchPdf(statements: YearEndData[]): Buffer {
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  statements.forEach((data, i) => {
+    if (i > 0) doc.addPage();
+    renderStatement(doc, data);
+  });
+  return Buffer.from(doc.output("arraybuffer"));
+}
+
+function renderStatement(doc: jsPDF, data: YearEndData): void {
   const left = 56, right = 556;
   let y = 64;
   const orgAddr = data.org.address_json ?? {};
@@ -87,6 +105,4 @@ export function buildYearEndStatementPdf(data: YearEndData): Buffer {
     `retain this statement for your tax records.`;
   const wrapped = doc.splitTextToSize(statement, right - left) as string[];
   doc.text(wrapped, left, y);
-
-  return Buffer.from(doc.output("arraybuffer"));
 }

@@ -43,6 +43,18 @@ export default async function ReportsPage({
         </form>
       </div>
 
+      <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap", margin: "1rem 0" }}>
+        <a href={`/api/reports/lapsed?type=lybunt&year=${year}`} style={{ ...btn, textDecoration: "none", color: "inherit" }}>⬇ LYBUNT CSV</a>
+        <a href={`/api/reports/lapsed?type=sybunt&year=${year}`} style={{ ...btn, textDecoration: "none", color: "inherit" }}>⬇ SYBUNT CSV</a>
+        <a
+          href={`/api/year-end/batch?year=${year - 1}`}
+          title={`One PDF with a ${year - 1} annual statement for every donor — the January statement run.`}
+          style={{ ...btn, textDecoration: "none", color: "inherit" }}
+        >
+          ⬇ {year - 1} year-end statements (all donors)
+        </a>
+      </div>
+
       <LapseTable
         title={`LYBUNT — gave in ${year - 1}, not yet in ${year}`}
         subtitle="Last Year But Unfortunately Not This. Prime re-solicitation list."

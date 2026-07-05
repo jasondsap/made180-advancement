@@ -50,6 +50,7 @@ export async function createConstituentAction(fd: FormData) {
       orgName: str(fd, "orgName") || null,
       email: email || null,
       phone: str(fd, "phone") || null,
+      employer: str(fd, "employer") || null,
       address: addr(fd),
       source: "manual",
     });
@@ -75,6 +76,7 @@ export async function updateConstituentAction(fd: FormData) {
       orgName: str(fd, "orgName") || null,
       email: str(fd, "email") || null,
       phone: str(fd, "phone") || null,
+      employer: str(fd, "employer") || null,
       address: addr(fd),
       doNotContact: fd.get("doNotContact") === "on",
       emailOptOut: fd.get("emailOptOut") === "on",

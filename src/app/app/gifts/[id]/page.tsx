@@ -4,8 +4,11 @@ import { getAuthContext, canManage } from "@/lib/auth";
 import { getGiftById } from "@/repositories/gifts";
 import { getConstituentById } from "@/repositories/constituents";
 import { getFundById } from "@/repositories/funds";
+import { getCampaignById } from "@/repositories/campaigns";
+import { getAppealById } from "@/repositories/appeals";
+import { getFundraiser } from "@/repositories/fundraisers";
 import { usd, fmtDate } from "@/lib/format";
-import { refundGift, resendReceipt } from "../actions";
+import { refundGift, resendReceipt, voidGiftAction } from "../actions";
 import { ThankYouButton } from "./ThankYouButton";
 
 const MSGS: Record<string, [string, string, string]> = {
@@ -15,6 +18,9 @@ const MSGS: Record<string, [string, string, string]> = {
   refund_error: ["#fdecec", "#9b1c1c", "Refund failed — check Stripe and try again."],
   receipt_sent: ["#edf1ec", "var(--forest)", "Receipt sent."],
   receipt_error: ["#fdecec", "#9b1c1c", "Receipt could not be sent (check email config)."],
+  saved: ["#edf1ec", "var(--forest)", "Gift updated."],
+  voided: ["#edf1ec", "var(--forest)", "Gift voided — it no longer counts in any totals."],
+  void_error: ["#fdecec", "#9b1c1c", "Only manually-entered gifts can be voided. Use Refund for online gifts."],
 };
 
 export default async function GiftDetailPage({
@@ -32,9 +38,13 @@ export default async function GiftDetailPage({
   const gift = await getGiftById(ctx.orgId, id);
   if (!gift) notFound();
 
-  const [constituent, fund] = await Promise.all([
+  const [constituent, fund, campaign, appeal, fundraiser, softCredit] = await Promise.all([
     getConstituentById(ctx.orgId, gift.constituent_id),
     gift.fund_id ? getFundById(ctx.orgId, gift.fund_id) : Promise.resolve(undefined),
+    gift.campaign_id ? getCampaignById(ctx.orgId, gift.campaign_id) : Promise.resolve(undefined),
+    gift.appeal_id ? getAppealById(ctx.orgId, gift.appeal_id) : Promise.resolve(undefined),
+    gift.fundraiser_id ? getFundraiser(ctx.orgId, gift.fundraiser_id) : Promise.resolve(undefined),
+    gift.soft_credit_id ? getConstituentById(ctx.orgId, gift.soft_credit_id) : Promise.resolve(undefined),
   ]);
 
   const donor = constituent
@@ -65,8 +75,20 @@ export default async function GiftDetailPage({
         <Row k="Currency" v={gift.currency.toUpperCase()} />
         {gift.fee_cents != null && <Row k="Processing fee" v={usd(gift.fee_cents)} />}
         {gift.net_cents != null && <Row k="Net" v={usd(gift.net_cents)} />}
+        {gift.refund_cents != null && gift.refund_cents > 0 && gift.status !== "refunded" && (
+          <Row k="Partially refunded" v={usd(gift.refund_cents)} />
+        )}
         {gift.tribute_type && <Row k={gift.tribute_type === "in_memory" ? "In memory of" : "In honor of"} v={gift.tribute_name ?? "—"} />}
         {gift.notes && <Row k="Notes" v={gift.notes} />}
+      </section>
+
+      {/* Attribution — the reporting spine this gift feeds */}
+      <section style={card}>
+        <Row k="Campaign" v={campaign ? <Link href={`/app/campaigns/${campaign.id}`} style={{ color: "var(--brand)" }}>{campaign.name}</Link> : "—"} />
+        <Row k="Appeal" v={appeal?.name ?? "—"} />
+        <Row k="Fundraiser" v={fundraiser?.title ?? "—"} />
+        <Row k="Soft credit" v={softCredit ? <Link href={`/app/constituents/${softCredit.id}`} style={{ color: "var(--brand)" }}>{[softCredit.first_name, softCredit.last_name].filter(Boolean).join(" ") || softCredit.org_name || softCredit.email}</Link> : "—"} />
+        <Row k="Anonymous" v={gift.is_anonymous ? "Yes — hidden from donor walls" : "No"} />
       </section>
 
       <section style={card}>
@@ -83,15 +105,22 @@ export default async function GiftDetailPage({
         </section>
       )}
 
-      <div style={{ display: "flex", gap: ".75rem", marginTop: "1rem" }}>
+      <div style={{ display: "flex", gap: ".75rem", marginTop: "1rem", flexWrap: "wrap" }}>
         <form action={resendReceipt}>
           <input type="hidden" name="giftId" value={gift.id} />
           <button type="submit" style={btn}>{gift.receipt_number ? "Resend receipt" : "Send receipt"}</button>
         </form>
-        {canManage(ctx.role) && gift.status !== "refunded" && (
+        {canManage(ctx.role) && <Link href={`/app/gifts/${gift.id}/edit`} style={{ ...btn, textDecoration: "none", color: "inherit", display: "inline-block" }}>Edit</Link>}
+        {canManage(ctx.role) && gift.status !== "refunded" && gift.stripe_payment_intent_id && (
           <form action={refundGift}>
             <input type="hidden" name="giftId" value={gift.id} />
             <button type="submit" style={btnDanger}>Refund</button>
+          </form>
+        )}
+        {canManage(ctx.role) && gift.status === "succeeded" && !gift.stripe_payment_intent_id && (
+          <form action={voidGiftAction}>
+            <input type="hidden" name="giftId" value={gift.id} />
+            <button type="submit" style={btnDanger}>Void</button>
           </form>
         )}
       </div>
