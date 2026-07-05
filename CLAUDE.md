@@ -186,6 +186,11 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 - Verify risky SQL with a temp `scripts/_*.ts` (dotenv + pg), assert, then delete.
 
 ## Outstanding config (not code)
+> **Full checklist: `PRODUCTION_CONFIG.md`** (repo root) — the complete Phases 0–5
+> production configuration guide (env vars incl. `CRON_SECRET`, Stripe webhook
+> event list + Billing Portal + payment methods, Cognito `AdminCreateUser` IAM,
+> Resend webhook/tracking, the Tidings cron, per-org onboarding, verification).
+> The list below predates Phases 0–5; the doc supersedes it where they differ.
 - Cognito callback `/api/auth/callback/cognito`, sign-out `/`, users for admins.
 - `RESEND_API_KEY` + verified sender; `RESEND_WEBHOOK_SECRET` + webhook →
   `/api/tidings/webhook/resend`.
