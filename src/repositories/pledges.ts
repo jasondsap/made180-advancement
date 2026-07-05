@@ -19,14 +19,16 @@ export interface PledgeWithDonor extends Pledge {
   donor_name: string;
 }
 
-export async function listPledges(orgId: string): Promise<PledgeWithDonor[]> {
+export async function listPledges(orgId: string, limit = 500): Promise<PledgeWithDonor[]> {
   assertOrgId(orgId);
+  const capped = Math.min(Math.max(limit, 1), 2000);
   return (await sql`
     SELECT p.*,
            COALESCE(NULLIF(trim(coalesce(c.first_name,'') || ' ' || coalesce(c.last_name,'')), ''), c.org_name, c.email, 'Unknown') AS donor_name
     FROM pledges p JOIN constituents c ON c.id = p.constituent_id
     WHERE p.org_id = ${orgId}
     ORDER BY p.created_at DESC
+    LIMIT ${capped}
   `) as unknown as PledgeWithDonor[];
 }
 

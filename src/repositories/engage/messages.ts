@@ -71,6 +71,76 @@ export async function updateMessage(
   `;
 }
 
+/**
+ * Atomically claim a message for sending: draft/scheduled → sending, in one
+ * compare-and-set. Returns the message iff WE claimed it — a concurrent second
+ * "Send now" (double-click, double-submit) gets undefined instead of a second
+ * send. This is the only path that may move a message into 'sending'.
+ */
+export async function claimMessageForSending(orgId: string, id: string): Promise<EngageMessage | undefined> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    UPDATE engage_messages SET status = 'sending'
+    WHERE org_id = ${orgId} AND id = ${id} AND status IN ('draft', 'scheduled')
+    RETURNING *
+  `) as unknown as EngageMessage[];
+  return rows[0];
+}
+
+/** Schedule a draft for later delivery (cron drains due messages). CAS from draft. */
+export async function scheduleMessage(orgId: string, id: string, at: Date): Promise<boolean> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    UPDATE engage_messages SET status = 'scheduled', scheduled_at = ${at.toISOString()}
+    WHERE org_id = ${orgId} AND id = ${id} AND status = 'draft'
+    RETURNING id
+  `) as unknown as unknown[];
+  return rows.length > 0;
+}
+
+/** Un-schedule back to draft (only while still scheduled). */
+export async function cancelSchedule(orgId: string, id: string): Promise<boolean> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    UPDATE engage_messages SET status = 'draft', scheduled_at = NULL
+    WHERE org_id = ${orgId} AND id = ${id} AND status = 'scheduled'
+    RETURNING id
+  `) as unknown as unknown[];
+  return rows.length > 0;
+}
+
+export interface CronMessageRef {
+  org_id: string;
+  id: string;
+  channel: EngageChannel;
+}
+
+/**
+ * Cross-org resolvers for the cron drainer (/api/tidings/cron) — a documented
+ * exception to orgId-first: the cron tick has no org context and must sweep
+ * every tenant. Only ids/channel leave this function; all actual work goes
+ * back through org-scoped paths.
+ */
+export async function listDueScheduledMessages(limit = 20): Promise<CronMessageRef[]> {
+  return (await sql`
+    SELECT org_id, id, channel FROM engage_messages
+    WHERE status = 'scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= now()
+    ORDER BY scheduled_at
+    LIMIT ${Math.min(Math.max(limit, 1), 100)}
+  `) as unknown as CronMessageRef[];
+}
+
+/** Messages stuck in 'sending' (crashed/timed-out drain) needing a resume. */
+export async function listStuckSendingMessages(olderThanMinutes = 10, limit = 20): Promise<CronMessageRef[]> {
+  return (await sql`
+    SELECT org_id, id, channel FROM engage_messages
+    WHERE status = 'sending' AND channel IN ('email', 'sms')
+      AND updated_at < now() - (${olderThanMinutes} * interval '1 minute')
+    ORDER BY updated_at
+    LIMIT ${Math.min(Math.max(limit, 1), 100)}
+  `) as unknown as CronMessageRef[];
+}
+
 export async function setMessageStatus(
   orgId: string,
   id: string,

@@ -60,6 +60,31 @@ export async function markWebhookProcessed(stripeEventId: string): Promise<void>
   `;
 }
 
+export interface WebhookErrorRow {
+  stripe_event_id: string;
+  type: string | null;
+  org_id: string | null;
+  handler_error: string | null;
+  created_at: Date;
+}
+
+/**
+ * Recent failed events for the super_admin console — so a broken webhook is
+ * visible in-product, not only in CloudWatch. (Stripe retries re-claim these
+ * rows automatically; anything still 'error' after retries needs a human.)
+ */
+export async function listRecentWebhookErrors(limit = 25): Promise<WebhookErrorRow[]> {
+  return (await sql`
+    SELECT stripe_event_id, type, org_id,
+           payload->>'handler_error' AS handler_error,
+           created_at
+    FROM webhook_events
+    WHERE status = 'error'
+    ORDER BY created_at DESC
+    LIMIT ${Math.min(Math.max(limit, 1), 100)}
+  `) as unknown as WebhookErrorRow[];
+}
+
 export async function markWebhookError(stripeEventId: string, message: string): Promise<void> {
   await sql`
     UPDATE webhook_events

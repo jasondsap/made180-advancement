@@ -8,7 +8,7 @@ import { listFunds } from "@/repositories/funds";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { SmsComposer } from "../SmsComposer";
-import { saveSmsDraftAction, sendSmsNowAction, deleteSmsMessageAction } from "../../actions";
+import { saveSmsDraftAction, sendSmsNowAction, deleteSmsMessageAction, resumeSmsSendAction } from "../../actions";
 import type { EngageRecipient, RecipientStatus } from "@/types/engage";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +69,13 @@ export default async function TextMessagePage({
         <Badge tone={message.status === "sent" ? "success" : message.status === "failed" ? "danger" : "info"}>{message.status}</Badge>
       </div>
       {msg === "sent" && <div style={{ background: "#edf1ec", color: "var(--forest)", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Text sent to {stats.total} recipient(s).</div>}
+      {msg === "sending" && <div style={{ background: "#fff4e5", color: "#7a4f00", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Send in progress — large lists continue in the background.</div>}
+      {canManage(ctx.role) && message.status === "sending" && (
+        <form action={resumeSmsSendAction} style={{ marginBottom: "1rem" }}>
+          <input type="hidden" name="id" value={message.id} />
+          <button type="submit" style={{ padding: ".45rem .9rem", borderRadius: 7, background: "transparent", color: "var(--brand)", border: "1px solid var(--brand)", fontSize: ".85rem", fontWeight: 600, cursor: "pointer" }}>Resume sending</button>
+        </form>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: ".75rem", marginBottom: "1.5rem" }}>
         <Stat label="Recipients" value={stats.total} />

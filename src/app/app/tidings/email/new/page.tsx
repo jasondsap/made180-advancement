@@ -3,9 +3,10 @@ import { getAuthContext, canManage } from "@/lib/auth";
 import { orgFlags } from "@/lib/featureFlags";
 import { listSenders } from "@/repositories/engage/senders";
 import { listFunds } from "@/repositories/funds";
+import { listSegments } from "@/repositories/engage/segments";
 import { getConnectionByUserId } from "@/repositories/canvaConnections";
 import { EmailComposer } from "../EmailComposer";
-import { saveEmailDraftAction, sendEmailNowAction } from "../../actions";
+import { saveEmailDraftAction, sendEmailNowAction, scheduleEmailAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,10 @@ export default async function NewEmailPage() {
   if (!ctx) return null;
   if (!canManage(ctx.role)) return <p style={{ color: "#999" }}>Sending email requires an admin role.</p>;
 
-  const [senders, funds] = await Promise.all([
+  const [senders, funds, segments] = await Promise.all([
     listSenders(ctx.orgId),
     listFunds(ctx.orgId, { activeOnly: true }),
+    listSegments(ctx.orgId),
   ]);
   const canvaEnabled = (await orgFlags(ctx.orgId)).canva;
   const canvaConnected = canvaEnabled && Boolean(await getConnectionByUserId(ctx.user.id));
@@ -30,8 +32,10 @@ export default async function NewEmailPage() {
       <EmailComposer
         senders={senders.map((s) => ({ id: s.id, label: `${s.from_name} <${s.from_email}>` }))}
         funds={funds.map((f) => ({ id: f.id, name: f.name }))}
+        segments={segments.map((s) => ({ id: s.id, name: s.name }))}
         saveDraftAction={saveEmailDraftAction}
         sendNowAction={sendEmailNowAction}
+        scheduleAction={scheduleEmailAction}
         canvaEnabled={canvaEnabled}
         canvaConnected={canvaConnected}
       />

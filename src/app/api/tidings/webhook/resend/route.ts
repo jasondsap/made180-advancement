@@ -65,8 +65,10 @@ export async function POST(req: Request) {
 
   await advanceStatusByProviderId(providerId, status);
 
-  // A spam complaint must suppress future marketing email to that contact.
-  if (status === "unsubscribed") {
+  // Suppress future marketing email on complaints AND bounces. Re-sending to a
+  // bounced address forever is a sender-reputation problem; if a bounce was
+  // transient the admin can clear the opt-out on the constituent record.
+  if (status === "unsubscribed" || status === "bounced") {
     const r = await getByProviderId(providerId);
     if (r?.constituent_id) await setEmailOptOut(r.org_id, r.constituent_id, true);
   }

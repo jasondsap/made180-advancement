@@ -101,6 +101,11 @@ export async function sendEngageEmail(msg: EngageEmail): Promise<{ id: string | 
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
   });
-  if (result.error) throw new Error(`Resend send failed: ${result.error.message}`);
+  if (result.error) {
+    // Include the error name (e.g. rate_limit_exceeded) — the send pipeline's
+    // retry classifier matches on it.
+    const name = (result.error as { name?: string }).name;
+    throw new Error(`Resend send failed${name ? ` [${name}]` : ""}: ${result.error.message}`);
+  }
   return { id: result.data?.id ?? null };
 }

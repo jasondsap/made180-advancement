@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { requireSuperAdmin } from "@/lib/auth";
 import { listAllOrgs } from "@/repositories/orgs";
+import { listRecentWebhookErrors } from "@/repositories/webhookEvents";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrgsPage() {
   await requireSuperAdmin();
-  const orgs = await listAllOrgs();
+  const [orgs, webhookErrors] = await Promise.all([listAllOrgs(), listRecentWebhookErrors()]);
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -53,6 +54,37 @@ export default async function AdminOrgsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Platform health: Stripe webhook events that failed processing. Stripe's
+          retries re-claim these automatically; anything lingering needs a human. */}
+      {webhookErrors.length > 0 && (
+        <div style={{ marginTop: "1.5rem", border: "1px solid #e6c3c0", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+          <div style={{ background: "#fdecec", color: "#9b1c1c", padding: ".6rem .8rem", fontWeight: 600, fontSize: ".9rem" }}>
+            ⚠ {webhookErrors.length} Stripe webhook event(s) failed processing
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".85rem" }}>
+            <thead>
+              <tr style={{ textAlign: "left" }}>
+                <th style={th}>When</th><th style={th}>Event</th><th style={th}>Type</th><th style={th}>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {webhookErrors.map((e) => (
+                <tr key={e.stripe_event_id} style={{ borderTop: "1px solid var(--app-border)" }}>
+                  <td style={td}>{new Date(e.created_at).toLocaleString()}</td>
+                  <td style={td}><code style={{ fontSize: ".78rem" }}>{e.stripe_event_id}</code></td>
+                  <td style={td}>{e.type ?? "—"}</td>
+                  <td style={{ ...td, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={e.handler_error ?? ""}>{e.handler_error ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: ".78rem", color: "#7a7367", padding: ".5rem .8rem", margin: 0 }}>
+            Stripe retries failed events automatically (they re-claim on delivery). If a row persists past a day,
+            use the Stripe dashboard&apos;s “Resend event” on this endpoint after fixing the cause.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

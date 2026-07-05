@@ -8,13 +8,16 @@ import { createDomain, getDomain, setDomainVerification, deleteDomain } from "@/
 import { createSender, setDefaultSender, deleteSender } from "@/repositories/engage/senders";
 import { createAddress, deleteAddress } from "@/repositories/engage/addresses";
 import { createMergeField, updateMergeFieldDefault, deleteMergeField } from "@/repositories/engage/mergeFields";
-import { createMessage, updateMessage, getMessage, deleteMessage, setMessageStatus } from "@/repositories/engage/messages";
+import {
+  createMessage, updateMessage, getMessage, deleteMessage, setMessageStatus,
+  scheduleMessage, cancelSchedule,
+} from "@/repositories/engage/messages";
 import { resolveAudience } from "@/repositories/engage/audience";
-import { bulkInsertRecipients } from "@/repositories/engage/recipients";
+import { bulkInsertRecipients, requeueFailed } from "@/repositories/engage/recipients";
 import { createSegment, updateSegment, deleteSegment } from "@/repositories/engage/segments";
 import { bulkLogInteractions } from "@/repositories/interactions";
-import { sendEmailMessage } from "@/domain/engage/send";
-import { sendSmsMessage } from "@/domain/engage/sendSms";
+import { sendEmailMessage, drainEmailMessage } from "@/domain/engage/send";
+import { sendSmsMessage, drainSmsMessage } from "@/domain/engage/sendSms";
 import type { AudienceSpec, AddressType, EngageDomain, SegmentCriteria } from "@/types/engage";
 import type { ConstituentType } from "@/types/db";
 
@@ -220,9 +223,69 @@ export async function sendEmailNowAction(fd: FormData) {
   }
   const msg = await getMessage(ctx.orgId, id);
   if (!msg?.subject || !msg.body_md) throw new Error("Subject and body are required to send");
-  await sendEmailMessage(ctx.orgId, id);
+  const result = await sendEmailMessage(ctx.orgId, id);
   revalidatePath("/app/tidings/email");
-  redirect(`/app/tidings/email/${id}?msg=sent`);
+  redirect(`/app/tidings/email/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+}
+
+/** Create/update the draft, then schedule it for later delivery. */
+export async function scheduleEmailAction(fd: FormData) {
+  const ctx = await requireManager();
+  const when = new Date(str(fd, "scheduledAt"));
+  if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() + 60_000) {
+    throw new Error("Pick a schedule time at least a minute in the future.");
+  }
+  let id = str(fd, "id");
+  const fields = {
+    name: str(fd, "name") || "Untitled email",
+    subject: str(fd, "subject") || null,
+    bodyMd: str(fd, "body") || null,
+    senderId: str(fd, "senderId") || null,
+    audience: buildAudience(fd),
+  };
+  if (id) {
+    await updateMessage(ctx.orgId, id, fields);
+  } else {
+    const m = await createMessage(ctx.orgId, { channel: "email", ...fields, createdBy: ctx.user.id });
+    id = m.id;
+  }
+  const msg = await getMessage(ctx.orgId, id);
+  if (!msg?.subject || !msg.body_md) throw new Error("Subject and body are required to schedule");
+  await scheduleMessage(ctx.orgId, id, when);
+  revalidatePath("/app/tidings/email");
+  redirect(`/app/tidings/email?tab=outbox&msg=scheduled`);
+}
+
+/** Un-schedule an outbox message back to drafts. */
+export async function cancelScheduleAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  await cancelSchedule(ctx.orgId, id);
+  revalidatePath("/app/tidings/email");
+  redirect(`/app/tidings/email?tab=drafts&msg=unscheduled`);
+}
+
+/** Continue a send that was interrupted mid-drain (message stuck in 'sending'). */
+export async function resumeEmailSendAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  const result = await drainEmailMessage(ctx.orgId, id);
+  revalidatePath(`/app/tidings/email/${id}`);
+  redirect(`/app/tidings/email/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+}
+
+/** Re-queue failed recipients and drain again. */
+export async function retryFailedEmailAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  const requeued = await requeueFailed(ctx.orgId, id);
+  if (requeued > 0) {
+    // Reopen the message for draining if it had finalized.
+    await setMessageStatus(ctx.orgId, id, "sending");
+    await drainEmailMessage(ctx.orgId, id);
+  }
+  revalidatePath(`/app/tidings/email/${id}`);
+  redirect(`/app/tidings/email/${id}?msg=retried`);
 }
 
 export async function deleteMessageAction(fd: FormData) {
@@ -256,9 +319,18 @@ export async function sendSmsNowAction(fd: FormData) {
   }
   const msg = await getMessage(ctx.orgId, id);
   if (!msg?.body_md) throw new Error("Message body is required to send");
-  await sendSmsMessage(ctx.orgId, id);
+  const result = await sendSmsMessage(ctx.orgId, id);
   revalidatePath("/app/tidings/texts");
-  redirect(`/app/tidings/texts/${id}?msg=sent`);
+  redirect(`/app/tidings/texts/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+}
+
+/** Continue an SMS send that was interrupted mid-drain. */
+export async function resumeSmsSendAction(fd: FormData) {
+  const ctx = await requireManager();
+  const id = str(fd, "id");
+  const result = await drainSmsMessage(ctx.orgId, id);
+  revalidatePath(`/app/tidings/texts/${id}`);
+  redirect(`/app/tidings/texts/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
 }
 
 export async function deleteSmsMessageAction(fd: FormData) {

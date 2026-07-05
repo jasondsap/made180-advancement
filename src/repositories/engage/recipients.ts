@@ -10,26 +10,35 @@ export interface NewRecipient {
   toPhone?: string | null;
 }
 
-/** Fan out a message to its resolved audience. Idempotent per (message, constituent). */
+/**
+ * Fan out a message to its resolved audience. Idempotent per (message,
+ * constituent). Single unnest statement — one round-trip for any batch size
+ * (a per-row loop here once meant 2,000 sequential queries before the first
+ * email went out).
+ */
 export async function bulkInsertRecipients(orgId: string, messageId: string, rows: NewRecipient[]): Promise<number> {
   assertOrgId(orgId);
-  let inserted = 0;
-  for (const r of rows) {
-    const res = (await sql`
-      INSERT INTO engage_recipients (org_id, message_id, constituent_id, to_email, to_phone)
-      VALUES (${orgId}, ${messageId}, ${r.constituentId}, ${r.toEmail ?? null}, ${r.toPhone ?? null})
-      ON CONFLICT (message_id, constituent_id) WHERE constituent_id IS NOT NULL DO NOTHING
-      RETURNING id
-    `) as unknown as unknown[];
-    inserted += res.length;
-  }
-  return inserted;
+  if (rows.length === 0) return 0;
+  const conIds = rows.map((r) => r.constituentId);
+  const emails = rows.map((r) => r.toEmail ?? null);
+  const phones = rows.map((r) => r.toPhone ?? null);
+  const res = (await sql`
+    INSERT INTO engage_recipients (org_id, message_id, constituent_id, to_email, to_phone)
+    SELECT ${orgId}, ${messageId}, u.con_id, u.email, u.phone
+    FROM unnest(${conIds}::uuid[], ${emails}::text[], ${phones}::text[]) AS u(con_id, email, phone)
+    ON CONFLICT (message_id, constituent_id) WHERE constituent_id IS NOT NULL DO NOTHING
+    RETURNING id
+  `) as unknown as unknown[];
+  return res.length;
 }
 
-export async function listRecipients(orgId: string, messageId: string): Promise<EngageRecipient[]> {
+/** Recipient rows for the detail page — bounded; pair with statsForMessage for true totals. */
+export async function listRecipients(orgId: string, messageId: string, limit = 1000): Promise<EngageRecipient[]> {
   assertOrgId(orgId);
+  const capped = Math.min(Math.max(limit, 1), 5000);
   return (await sql`
-    SELECT * FROM engage_recipients WHERE org_id = ${orgId} AND message_id = ${messageId} ORDER BY created_at
+    SELECT * FROM engage_recipients WHERE org_id = ${orgId} AND message_id = ${messageId}
+    ORDER BY created_at LIMIT ${capped}
   `) as unknown as EngageRecipient[];
 }
 
@@ -38,6 +47,54 @@ export async function listQueued(orgId: string, messageId: string): Promise<Enga
   return (await sql`
     SELECT * FROM engage_recipients WHERE org_id = ${orgId} AND message_id = ${messageId} AND status = 'queued' ORDER BY created_at
   `) as unknown as EngageRecipient[];
+}
+
+/**
+ * Atomically claim a batch of queued recipients for delivery by flipping them
+ * to 'sent' up front (provider id filled in after the actual send). This makes
+ * delivery AT-MOST-ONCE per recipient: two concurrent drainers can never both
+ * send to the same row, because only one UPDATE wins each row. The trade-off —
+ * a crash between claim and send leaves a 'sent' row with a NULL provider id
+ * and no delivery — is the right failure mode for donor email (a missed send
+ * beats a double send). Send failures downgrade the row to 'failed'.
+ */
+export async function claimQueuedBatch(
+  orgId: string,
+  messageId: string,
+  limit: number,
+): Promise<EngageRecipient[]> {
+  assertOrgId(orgId);
+  const capped = Math.min(Math.max(limit, 1), 500);
+  return (await sql`
+    UPDATE engage_recipients SET status = 'sent'
+    WHERE id IN (
+      SELECT id FROM engage_recipients
+      WHERE org_id = ${orgId} AND message_id = ${messageId} AND status = 'queued'
+      ORDER BY created_at
+      LIMIT ${capped}
+    )
+    RETURNING *
+  `) as unknown as EngageRecipient[];
+}
+
+export async function countQueued(orgId: string, messageId: string): Promise<number> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    SELECT count(*)::int AS n FROM engage_recipients
+    WHERE org_id = ${orgId} AND message_id = ${messageId} AND status = 'queued'
+  `) as unknown as Array<{ n: number }>;
+  return rows[0]?.n ?? 0;
+}
+
+/** Put failed recipients back in the queue (admin "retry failed" action). */
+export async function requeueFailed(orgId: string, messageId: string): Promise<number> {
+  assertOrgId(orgId);
+  const rows = (await sql`
+    UPDATE engage_recipients SET status = 'queued', error = NULL
+    WHERE org_id = ${orgId} AND message_id = ${messageId} AND status = 'failed'
+    RETURNING id
+  `) as unknown as unknown[];
+  return rows.length;
 }
 
 export async function setRecipientSent(orgId: string, id: string, providerMessageId: string | null): Promise<void> {
