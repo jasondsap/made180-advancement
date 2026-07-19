@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Almonry — Advancement Platform
 
 **Almonry** is the multi-tenant nonprofit donor CRM + giving + stewardship
@@ -32,11 +36,31 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
     `auctions.getItemPublic`/`highBid`/`listPublicItems`), and
     `canvaConnections.ts` (per-user OAuth tokens, keyed by `user_id` — a Canva
     login belongs to a person; access control is via the session user + the
-    org-scoped `canvaMedia` repo).
+    org-scoped `canvaMedia` repo). Also `rate_limits` (migration 0015) — the only
+    table with no `org_id` column at all; tenancy lives inside the composite
+    `bucket` key.
+- **Constituents with financial history are records of record.** Migration 0016
+  moved `gifts`/`pledges`/`recurring_plans` → `constituent_id` FKs from
+  `ON DELETE CASCADE` to **`RESTRICT`**: a donor with gifts can no longer be
+  deleted, and the merge flow must reassign first. `gifts.soft_credit_id`
+  deliberately stays `SET NULL`. 0016 also added the schema's first CHECK
+  constraints (non-negative money on gifts/pledges/recurring/tickets/bids/goals,
+  `0 <= pledges.balance_cents <= total_cents`).
+- **Partial refunds do not flip status.** `gifts.refund_cents` (0022) records the
+  amount while the gift stays `'succeeded'`; only a *full* refund sets status
+  `'refunded'`. Known trade-off: derived rollups count gross.
+- **Two-layer feature gating.** Env flag = what the *platform* provisioned;
+  `orgs.features` jsonb (0019) = what a *tenant* is entitled to. Effective =
+  env AND `features[key] !== false` (missing/null = entitled). Use
+  `orgFlags(orgId)` for anything tenant-facing; bare `flags()` only when no org
+  is in scope.
 - **PCI = SAQ-A.** Card entry is Stripe-hosted only. We store Stripe IDs + last4.
 - **Idempotent webhooks.** `webhook_events.stripe_event_id` claimed first; gifts
   unique on `stripe_payment_intent_id` and (partial) `stripe_invoice_id`;
   registrants unique on `(stripe_checkout_session_id, ticket_type_id)`.
+  CSV gift import is idempotent on the partial unique `(org_id, external_ref)`
+  (0018) — re-running an LGL import is a no-op. P2P teams get-or-create on a
+  case-insensitive unique `(fundraiser_id, lower(name))` (0020).
 - **Stripe destination charges:** `on_behalf_of` + `transfer_data.destination` =
   org's `stripe_account_id`. No platform application fee. Donations, event tickets
   (`/api/events/checkout`), and P2P gifts all use this model.
@@ -58,7 +82,13 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   0013 campaigns (campaign description/category/cover/public_slug, appeal
   ask_amount/sent_on, gifts.is_anonymous, engage_messages.appeal_id, attribution
   indexes) · 0014 canva (canva_connections per-user OAuth tokens +
-  canva_media org-scoped exports). Runner: `scripts/migrate.ts`
+  canva_media org-scoped exports) · 0015 rate_limits (not org-scoped) ·
+  0016 integrity constraints (RESTRICT FKs, CHECKs, hot-path indexes) ·
+  0017 constituents.stripe_customer_id (one reusable Stripe Customer per donor →
+  a single Billing Portal session covering all their recurring gifts) ·
+  0018 gifts.external_ref (+ partial unique per org) · 0019 orgs.features jsonb ·
+  0020 p2p_teams (+ p2p_members.team_id) · 0021 registrants.checked_in_at ·
+  0022 gifts.refund_cents + constituents.employer. Runner: `scripts/migrate.ts`
   (`DATABASE_URL_UNPOOLED`; checksums applied files).
 - `src/lib/` — `env.ts` (all-optional literal reads + `requireEnv`; build-safe —
   new vars MUST also be mirrored in `next.config.mjs` `env:` block to reach the
@@ -68,20 +98,26 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   `crypto.ts` (AES-256-GCM encrypt/decrypt for tokens at rest, `TOKEN_ENC_KEY`),
   `s3.ts` (`putPublicImage` → media bucket), `canva.ts` (Canva Connect OAuth/PKCE,
   CAS token refresh, export polling, correlation-JWT verify),
-  `brand.ts` (Almonry tokens + chart palette), `featureFlags.ts`, `anthropic.ts`,
-  `format.ts`, `authConstants.ts`.
+  `brand.ts` (Almonry tokens + chart palette), `featureFlags.ts` (`flags()` +
+  `orgFlags()`), `anthropic.ts`, `format.ts`, `authConstants.ts`,
+  `csv.ts` (dependency-free RFC-4180 parser, used by the import wizard),
+  `rateLimit.ts` (Postgres fixed-window limiter — serverless-safe, **fails open**),
+  `cognitoAdmin.ts` (`AdminCreateUser` provisioning for the invite flow).
 - `src/repositories/` — orgs, constituents, gifts, funds, campaigns, appeals,
   pledges, recurringPlans, webhookEvents, users, attributes, relationships,
   analytics, reports, **fundraisers, ticketTypes, registrants, p2pMembers,
   auctions**, **campaignStats** (summary/sources/cumulative/appeal-perf/top
   donors/donor wall), **campaignSegments** (campaign-relative LYBUNT/SYBUNT/
   first-time/lapsed/recurring resolvers), **canvaConnections** (per-user OAuth,
-  documented exception), **canvaMedia** (org-scoped Canva exports), and
+  documented exception), **canvaMedia** (org-scoped Canva exports), **imports**
+  (CSV import batches), **interactions**, **tasks**, **receipts**, and
   **engage/** (domains, senders, addresses, mergeFields, messages, recipients,
   audience, segments). All `orgId`-scoped (+ documented exceptions).
 - `src/domain/` — fees, receiptPdf, receipts, yearEndPdf, quickbooksCsv,
   assistant, **campaignAsks** (AI appeal drafting), **campaignReportPdf**
-  (board report), and **engage/** (render, send, sendSms, mailingPdf).
+  (board report), **recurringNotices** (donor "manage my gift" signed link +
+  failed-payment dunning), **tributeNotice** (honoree eCard after a tribute
+  gift), and **engage/** (render, send, sendSms, mailingPdf).
 - `src/components/` — `ArchMark` (logo), `OrgSwitcher`, `SignOutButton`,
   `ui/` (DataTable, EmptyState, Badge, SubTabs), `tidings/` (TidingsTabs, SettingsNav),
   `canva/` (`CanvaImageField` drop-in image field, `CanvaPicker` modal,
@@ -98,7 +134,11 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   campaigns/segment-preview, campaigns/[id]/report (board PDF),
   canva/{connect,callback,designs,export,edit,return} (Canva Connect OAuth +
   design export→S3 + edit round-trip),
-  tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf.
+  tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf,
+  **tidings/cron** (sweeper), reports/lapsed, year-end/batch.
+  Note the API namespace is `tidings/*` while the data layer under it is
+  `engage` (see the Tidings section) — the two vocabularies are deliberate.
+- `src/app/embed/[orgSlug]/` — embeddable donation widget (iframe target).
 - `src/app/app/` — admin (force-dynamic): dashboard, gifts, constituents, pledges,
   reports, funds, **campaigns** (card list + /new + [id] detail with
   Overview/Appeals/Asks/Gifts/Report tabs + [id]/edit), **fundraisers**
@@ -147,6 +187,12 @@ constituents (`audience` repo: all / by fund / manual).
   status callback + inbound STOP/START webhooks; auto "Reply STOP" footer.
 - **Mailings** (`ENGAGE_MAILINGS_ENABLED`): merged letter PDF (`mailingPdf`),
   one page per recipient; downloaded from `/api/engage/mailings/[id]/pdf`.
+- **Sends are resumable, not one-shot.** A send drains in deadline-budgeted
+  batches with atomic per-batch claims, so overlapping ticks cannot double-send.
+  `POST /api/tidings/cron` (Bearer `CRON_SECRET`, fail-closed → 503 if unset)
+  fires due `scheduled` messages and resumes any left stuck in `sending`; point a
+  minute-level scheduler at it. A send that times out mid-drain is normal — the
+  next tick picks it up.
 
 ## Fundraisers (publishable giving) — distinct from CRM `campaigns`
 A **Fundraiser** is a public page that collects gifts and *designates* them to a
@@ -169,7 +215,16 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 
 ## Dev
 - `npm run dev` (port 3000 — match `APP_BASE_URL`).
-- `npm run migrate` / `npm run migrate:status` · `npm run typecheck` · `npm run build`.
+- `npm run migrate` / `npm run migrate:status` · `npm run typecheck` ·
+  `npm run lint` · `npm run build`.
+- `npm test` (vitest, one-shot) · `npm run test:watch`. Single file:
+  `npx vitest run src/lib/csv.test.ts`; single case: `npx vitest run -t "name"`.
+  Tests are `src/**/*.test.ts` only (a `.test.tsx`/`.spec.ts` will NOT be
+  collected), node environment, **no setup file and no DB** — everything is a
+  pure unit test over fixtures. Keep it that way: put logic worth testing in
+  `src/domain/` or `src/lib/` rather than in a repository that needs a live
+  Postgres. Current coverage: `domain/fees`, `domain/engage/render`, `lib/csv`,
+  `lib/engageTokens`.
 - Local Stripe: `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
   Test giving via `/give/nvre` (card 4242 4242 4242 4242). Raw `stripe trigger`
   events lack our metadata and are intentionally skipped.
@@ -183,6 +238,8 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
   can't flip an applied file's bytes and trip the checksum integrity check.
 - Feature flags (`src/lib/featureFlags.ts`) read env (`"1"`/`"true"`), off by
   default — un-provisioned channels/types stay behind upsell/"coming soon" UI.
+  Gate tenant-facing surfaces on `await orgFlags(orgId)`, not `flags()`, so the
+  per-org entitlement layer is honored.
 - Verify risky SQL with a temp `scripts/_*.ts` (dotenv + pg), assert, then delete.
 
 ## Outstanding config (not code)
@@ -230,7 +287,16 @@ manual gift entry); Canva Connect integration (feature-flagged per-user OAuth;
 logo, fundraiser heroes, and Tidings email graphics; exports copied to a public
 S3 media bucket at a stable key so edits overwrite in place).
 Phase-1 CRM (dashboard/gifts/constituents+merge/funds/campaigns/pledges/reports/
-QuickBooks export/Dori assistant/receipts) intact. 14 migrations applied.
+QuickBooks export/Dori assistant/receipts) intact.
+
+Phases 0–5 (see `PRODUCTION_CONFIG.md` to configure): production-readiness fixes
+(data-loss, security, DB integrity constraints); recurring-giving lifecycle +
+donor self-service via the Stripe Billing Portal and signed manage-my-gift links;
+CSV import wizard, Cognito invite flow, per-org entitlements (`orgs.features`);
+resumable/scheduled Tidings sends driven by the `/api/tidings/cron` sweeper, plus
+the first unit tests; donor-experience parity (payment methods, embeddable
+widget, tribute eCards, P2P teams, event check-in); CRM depth (gift edit/void,
+partial refunds, soft credits, pledges, batch statements). 22 migrations applied.
 
 ## Deploy: AWS Amplify
 See `amplify.yml`: push to Git, connect in Amplify (Next.js SSR auto-detected),
