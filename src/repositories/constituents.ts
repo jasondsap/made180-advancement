@@ -272,32 +272,28 @@ export async function setConstituentStripeCustomer(
 
 export async function listConstituents(
   orgId: string,
-  opts: { limit?: number; offset?: number; search?: string } = {},
+  opts: { limit?: number; offset?: number; search?: string; role?: string } = {},
 ): Promise<Constituent[]> {
   assertOrgId(orgId);
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
   const offset = Math.max(opts.offset ?? 0, 0);
-  const search = opts.search?.trim();
+  const search = opts.search?.trim() || null;
+  const like = search ? `%${search.toLowerCase()}%` : null;
+  const role = opts.role?.trim().toLowerCase() || null;
 
-  if (search) {
-    const like = `%${search.toLowerCase()}%`;
-    return (await sql`
-      SELECT * FROM constituents
-      WHERE org_id = ${orgId}
-        AND (
-          lower(email) LIKE ${like}
-          OR lower(coalesce(first_name, '') || ' ' || coalesce(last_name, '')) LIKE ${like}
-          OR lower(coalesce(org_name, '')) LIKE ${like}
-        )
-      ORDER BY updated_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `) as unknown as Constituent[];
-  }
-
+  // Both filters are optional and independent; a NULL param disables its clause.
   return (await sql`
-    SELECT * FROM constituents
-    WHERE org_id = ${orgId}
-    ORDER BY updated_at DESC
+    SELECT c.* FROM constituents c
+    WHERE c.org_id = ${orgId}
+      AND (${like}::text IS NULL OR
+        lower(c.email) LIKE ${like}
+        OR lower(coalesce(c.first_name, '') || ' ' || coalesce(c.last_name, '')) LIKE ${like}
+        OR lower(coalesce(c.org_name, '')) LIKE ${like})
+      AND (${role}::text IS NULL OR EXISTS (
+        SELECT 1 FROM constituent_attributes ca
+        WHERE ca.org_id = c.org_id AND ca.constituent_id = c.id
+          AND ca.attr_key = 'role' AND ca.attr_value = ${role}))
+    ORDER BY c.updated_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `) as unknown as Constituent[];
 }

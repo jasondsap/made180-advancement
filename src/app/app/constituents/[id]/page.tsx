@@ -149,11 +149,20 @@ export default async function ConstituentDetailPage({
             </form>
           ))}
         </div>
-        <form action={addRoleAction} style={{ display: "flex", gap: ".5rem", marginTop: ".75rem" }}>
+        <form action={addRoleAction} style={{ display: "grid", gap: ".6rem", marginTop: ".85rem", padding: ".75rem", border: "1px solid var(--app-border)", borderRadius: 9, background: "#fafbfa" }}>
           <input type="hidden" name="id" value={id} />
-          <input name="role" list="known-roles" placeholder="Add role" style={inp} />
-          <datalist id="known-roles">{KNOWN_ROLES.map((r) => <option key={r} value={r} />)}</datalist>
-          <button type="submit" style={btn}>Add</button>
+          <div style={{ fontSize: ".8rem", color: "#888" }}>Add roles</div>
+          <div style={{ display: "flex", gap: ".4rem .9rem", flexWrap: "wrap" }}>
+            {KNOWN_ROLES.filter((r) => !roles.includes(r)).map((r) => (
+              <label key={r} style={{ display: "flex", gap: ".35rem", alignItems: "center", fontSize: ".85rem" }}>
+                <input type="checkbox" name="role" value={r} /> {r}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+            <input name="customRole" placeholder="Custom role (optional)" style={{ ...inp, flex: 1, minWidth: 180 }} />
+            <button type="submit" style={btn}>Add selected</button>
+          </div>
         </form>
       </section>
 

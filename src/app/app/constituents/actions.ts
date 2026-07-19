@@ -10,7 +10,7 @@ import {
   findConstituentByEmail,
   getConstituentById,
 } from "@/repositories/constituents";
-import { addRole, removeRole } from "@/repositories/attributes";
+import { addRoles, removeRole } from "@/repositories/attributes";
 import { addRelationship, removeRelationship } from "@/repositories/relationships";
 import { createInteraction, deleteInteraction } from "@/repositories/interactions";
 import { getRecurringPlanBySubscriptionId, setRecurringPlanStatus } from "@/repositories/recurringPlans";
@@ -94,7 +94,12 @@ export async function addRoleAction(fd: FormData) {
   const ctx = await getAuthContext();
   if (!ctx) throw new Error("unauthorized");
   const id = str(fd, "id");
-  await addRole(ctx.orgId, id, str(fd, "role"));
+  // Multi-select: any number of checked "role" boxes plus an optional free-text
+  // "customRole". addRoles trims, lowercases, de-dupes, and skips existing.
+  const roles = [...fd.getAll("role").map(String), str(fd, "customRole")]
+    .map((r) => r.trim())
+    .filter(Boolean);
+  if (roles.length > 0) await addRoles(ctx.orgId, id, roles);
   revalidatePath(`/app/constituents/${id}`);
 }
 
