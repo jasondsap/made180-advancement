@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { label: "Emails", href: "/app/tidings/email", match: "/app/tidings/email" },
-  { label: "Texts", href: "/app/tidings/texts", match: "/app/tidings/texts" },
-  { label: "Mailings", href: "/app/tidings/mailings", match: "/app/tidings/mailings" },
-  { label: "Settings", href: "/app/tidings/settings/domains", match: "/app/tidings/settings" },
+  { label: "Emails", href: "/app/interactions/email", match: "/app/interactions/email" },
+  { label: "Texts", href: "/app/interactions/texts", match: "/app/interactions/texts" },
+  { label: "Mailings", href: "/app/interactions/mailings", match: "/app/interactions/mailings" },
+  { label: "Settings", href: "/app/interactions/settings/domains", match: "/app/interactions/settings" },
 ];
 
-export function TidingsTabs() {
+export function InteractionsTabs() {
   const pathname = usePathname() ?? "";
   return (
     <nav style={{ display: "flex", gap: ".5rem", borderBottom: "1px solid var(--app-border)", marginBottom: "1.5rem" }}>

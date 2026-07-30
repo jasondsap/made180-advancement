@@ -23,8 +23,8 @@ export type FeatureKey =
   | "canva";
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
-  engageSms: "Tidings SMS",
-  engageMailings: "Tidings mailings",
+  engageSms: "Interactions SMS",
+  engageMailings: "Interactions mailings",
   fundraiserEvents: "Events (ticketing)",
   fundraiserP2p: "Peer-to-peer",
   fundraiserAuction: "Auctions",

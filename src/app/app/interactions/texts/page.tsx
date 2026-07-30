@@ -47,16 +47,16 @@ export default async function TextsPage({ searchParams }: { searchParams: Promis
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <SubTabs items={TABS.map((t) => ({ key: t.key, label: t.label, href: `/app/tidings/texts?tab=${t.key}` }))} active={active.key} />
-        {canManage(ctx.role) && <Link href="/app/tidings/texts/new" style={btnPrimary}>New text</Link>}
+        <SubTabs items={TABS.map((t) => ({ key: t.key, label: t.label, href: `/app/interactions/texts?tab=${t.key}` }))} active={active.key} />
+        {canManage(ctx.role) && <Link href="/app/interactions/texts/new" style={btnPrimary}>New text</Link>}
       </div>
       {msg === "saved" && <div style={{ background: "#edf1ec", color: "var(--forest)", padding: ".7rem .9rem", borderRadius: 8, fontSize: ".9rem", marginBottom: "1rem" }}>Draft saved.</div>}
 
       <DataTable
         columns={columns}
         rows={messages}
-        rowActions={(r) => <Link href={`/app/tidings/texts/${r.id}`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>{r.status === "draft" ? "Edit" : "View"}</Link>}
-        empty={<EmptyState icon="💬" title={`No ${active.label.toLowerCase()} yet`} description="Send a text to your opted-in donors." action={canManage(ctx.role) ? <Link href="/app/tidings/texts/new" style={btnPrimary}>New text</Link> : undefined} />}
+        rowActions={(r) => <Link href={`/app/interactions/texts/${r.id}`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>{r.status === "draft" ? "Edit" : "View"}</Link>}
+        empty={<EmptyState icon="💬" title={`No ${active.label.toLowerCase()} yet`} description="Send a text to your opted-in donors." action={canManage(ctx.role) ? <Link href="/app/interactions/texts/new" style={btnPrimary}>New text</Link> : undefined} />}
       />
     </div>
   );

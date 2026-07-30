@@ -20,7 +20,7 @@ import { createTaskAction, toggleTaskAction, deleteTaskAction } from "../../task
 
 const MSGS: Record<string, [string, string, string]> = {
   saved: ["#edf1ec", "var(--forest)", "Saved."],
-  logged: ["#edf1ec", "var(--forest)", "Interaction logged."],
+  logged: ["#edf1ec", "var(--forest)", "Activity logged."],
   merged: ["#edf1ec", "var(--forest)", "Constituents merged."],
   merge_notfound: ["#fdecec", "#9b1c1c", "Couldn't find that constituent to merge."],
   merge_self: ["#fff4e5", "#7a4f00", "Can't merge a constituent into itself."],
@@ -127,9 +127,9 @@ export default async function ConstituentDetailPage({
             <input type="date" name="occurredAt" style={inp} title="When it happened (defaults to now)" />
           </div>
           <textarea name="body" placeholder="What happened?" style={{ ...inp, minHeight: 56 }} />
-          <div><button type="submit" style={btn}>Log interaction</button></div>
+          <div><button type="submit" style={btn}>Log activity</button></div>
         </form>
-        {interactions.length === 0 ? <p style={{ color: "#999", fontSize: ".88rem", margin: 0 }}>No activity logged yet. Tidings emails, texts, and letters auto-log here.</p> : (
+        {interactions.length === 0 ? <p style={{ color: "#999", fontSize: ".88rem", margin: 0 }}>No activity logged yet. Interactions emails, texts, and letters auto-log here.</p> : (
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {interactions.map((it) => <InteractionRow key={it.id} it={it} conId={id} />)}
           </ul>

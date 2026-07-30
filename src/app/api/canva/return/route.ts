@@ -28,7 +28,7 @@ function destinationFor(media: CanvaMedia, q: string): string {
     case "fundraiser_cover":
       return media.target_id ? `/app/fundraisers/${media.target_id}/edit?canva=${q}` : `/app/fundraisers`;
     case "email_inline":
-      return media.target_id ? `/app/tidings/email/${media.target_id}` : `/app/tidings/email`;
+      return media.target_id ? `/app/interactions/email/${media.target_id}` : `/app/interactions/email`;
   }
 }
 

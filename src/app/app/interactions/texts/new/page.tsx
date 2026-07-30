@@ -18,7 +18,7 @@ export default async function NewTextPage() {
   return (
     <div>
       <p style={{ marginBottom: ".5rem" }}>
-        <Link href="/app/tidings/texts" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Texts</Link>
+        <Link href="/app/interactions/texts" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Texts</Link>
       </p>
       <h2 style={{ fontSize: "1.25rem", margin: "0 0 1rem" }}>New text</h2>
       <SmsComposer

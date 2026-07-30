@@ -49,25 +49,25 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <SubTabs items={TABS.map((t) => ({ key: t.key, label: t.label, href: `/app/tidings/email?tab=${t.key}` }))} active={active.key} />
-        {canManage(ctx.role) && <Link href="/app/tidings/email/new" style={btnPrimary}>New email</Link>}
+        <SubTabs items={TABS.map((t) => ({ key: t.key, label: t.label, href: `/app/interactions/email?tab=${t.key}` }))} active={active.key} />
+        {canManage(ctx.role) && <Link href="/app/interactions/email/new" style={btnPrimary}>New email</Link>}
       </div>
 
       {msg === "saved" && <Banner>Draft saved.</Banner>}
       {!ready && (
         <div style={{ border: "1px solid var(--app-border)", background: "#fbf7ee", borderRadius: 10, padding: "1rem", marginBottom: "1rem", fontSize: ".9rem" }}>
           <strong>Finish setup to send:</strong>{" "}
-          <Link href="/app/tidings/settings/domains" style={{ color: "var(--brand)" }}>verify a domain</Link>,{" "}
-          <Link href="/app/tidings/settings/senders" style={{ color: "var(--brand)" }}>add a sender</Link>, and{" "}
-          <Link href="/app/tidings/settings/addresses" style={{ color: "var(--brand)" }}>set your org address</Link>.
+          <Link href="/app/interactions/settings/domains" style={{ color: "var(--brand)" }}>verify a domain</Link>,{" "}
+          <Link href="/app/interactions/settings/senders" style={{ color: "var(--brand)" }}>add a sender</Link>, and{" "}
+          <Link href="/app/interactions/settings/addresses" style={{ color: "var(--brand)" }}>set your org address</Link>.
         </div>
       )}
 
       <DataTable
         columns={columns}
         rows={messages}
-        rowActions={(r) => <Link href={`/app/tidings/email/${r.id}`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>{r.status === "draft" ? "Edit" : "View"}</Link>}
-        empty={<EmptyState icon="✉" title={`No ${active.label.toLowerCase()} yet`} description="Create an email to reach your donors." action={canManage(ctx.role) ? <Link href="/app/tidings/email/new" style={btnPrimary}>New email</Link> : undefined} />}
+        rowActions={(r) => <Link href={`/app/interactions/email/${r.id}`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>{r.status === "draft" ? "Edit" : "View"}</Link>}
+        empty={<EmptyState icon="✉" title={`No ${active.label.toLowerCase()} yet`} description="Create an email to reach your donors." action={canManage(ctx.role) ? <Link href="/app/interactions/email/new" style={btnPrimary}>New email</Link> : undefined} />}
       />
     </div>
   );

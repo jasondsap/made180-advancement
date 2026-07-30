@@ -83,7 +83,7 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   assistant, **campaignAsks** (AI appeal drafting), **campaignReportPdf**
   (board report), and **engage/** (render, send, sendSms, mailingPdf).
 - `src/components/` — `ArchMark` (logo), `OrgSwitcher`, `SignOutButton`,
-  `ui/` (DataTable, EmptyState, Badge, SubTabs), `tidings/` (TidingsTabs, SettingsNav),
+  `ui/` (DataTable, EmptyState, Badge, SubTabs), `interactions/` (InteractionsTabs, SettingsNav),
   `canva/` (`CanvaImageField` drop-in image field, `CanvaPicker` modal,
   `CanvaInsertImageButton` for the email composer).
 - `src/app/give/[orgSlug]/` — default donation page; `[fundraiserSlug]/` themed
@@ -98,11 +98,12 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   campaigns/segment-preview, campaigns/[id]/report (board PDF),
   canva/{connect,callback,designs,export,edit,return} (Canva Connect OAuth +
   design export→S3 + edit round-trip),
-  tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf.
+  tidings/webhook/{resend,twilio,twilio/inbound}, tidings/mailings/[id]/pdf,
+  tidings/cron (the `tidings` API prefix is intentional — see Interactions below).
 - `src/app/app/` — admin (force-dynamic): dashboard, gifts, constituents, pledges,
   reports, funds, **campaigns** (card list + /new + [id] detail with
   Overview/Appeals/Asks/Gifts/Report tabs + [id]/edit), **fundraisers**
-  (+ [id]/edit, /registrants, /members, /new wizard), **tidings**
+  (+ [id]/edit, /registrants, /members, /new wizard), **interactions**
   (email/texts/mailings/settings — donor messaging), assistant, settings,
   **admin/orgs** (super_admin console).
 - `middleware.ts` — NextAuth `withAuth` gate on `/app/*`.
@@ -129,12 +130,24 @@ when a user can access >1 org. Seeded super_admin: jason@made180.com.
   shared DonationForm); receipt + year-end PDFs theme the header. A fundraiser's
   `theme_json.accent` overrides further on its own page.
 
-## Tidings (donor messaging) — feature-flagged channels
-> UI, routes (`/app/tidings`, `/api/tidings/*`), and components are branded
-> **Tidings**. The internal data layer deliberately keeps the `engage` namespace:
-> `repositories/engage/`, `domain/engage/`, `types/engage.ts`, `engageTokens.ts`,
-> the `engage_*` tables, and the `ENGAGE_*` flags. (Renaming those = a DB
-> migration + env churn for no user benefit.)
+## Interactions (donor messaging) — feature-flagged channels
+> **Three namespaces, deliberately.** The module was called *Tidings*, and before
+> that *Engage*; each rename stopped where the cost outweighed the benefit.
+> - **User-facing + admin routes = Interactions.** `/app/interactions/*`,
+>   `src/components/interactions/`, every label and heading.
+> - **Webhook/API routes keep `tidings`** — `/api/tidings/webhook/{resend,twilio,
+>   twilio/inbound}`, `/api/tidings/cron`, `/api/tidings/mailings/[id]/pdf`. These
+>   URLs are registered in the Resend dashboard, the Twilio console, and the cron
+>   scheduler; renaming them silently breaks delivery tracking and scheduled sends
+>   until every external config is updated. Leave them alone.
+> - **Data layer keeps `engage`** — `repositories/engage/`, `domain/engage/`,
+>   `types/engage.ts`, `engageTokens.ts`, the `engage_*` tables, the `ENGAGE_*`
+>   flags. (Renaming = a DB migration + env churn for no user benefit.)
+>
+> **Do not confuse with the `interactions` table.** That's the per-constituent
+> CRM touchpoint log (migration 0012, `repositories/interactions.ts`), labelled
+> **Activity** in the UI. Sends from this module auto-log into it via
+> `bulkLogInteractions` — so "an Interactions email creates an Activity row."
 
 One message model (`engage_messages.channel ∈ email|sms|mail`) + per-recipient
 fan-out (`engage_recipients`) for tracking/idempotency. Audience = consent-filtered
@@ -189,7 +202,7 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 > **Full checklist: `PRODUCTION_CONFIG.md`** (repo root) — the complete Phases 0–5
 > production configuration guide (env vars incl. `CRON_SECRET`, Stripe webhook
 > event list + Billing Portal + payment methods, Cognito `AdminCreateUser` IAM,
-> Resend webhook/tracking, the Tidings cron, per-org onboarding, verification).
+> Resend webhook/tracking, the Interactions cron, per-org onboarding, verification).
 > The list below predates Phases 0–5; the doc supersedes it where they differ.
 - Cognito callback `/api/auth/callback/cognito`, sign-out `/`, users for admins.
 - `RESEND_API_KEY` + verified sender; `RESEND_WEBHOOK_SECRET` + webhook →
@@ -218,16 +231,16 @@ from `gifts.fundraiser_id` (no counters). Types: `donation_form`,
 
 ## Status
 Shipped: Almonry rebrand; super_admin org console + Stripe Connect onboarding +
-membership management + org switcher; per-tenant branding; Tidings (donor
+membership management + org switcher; per-tenant branding; Interactions (donor
 messaging: email, SMS, mailings); Fundraisers (donation forms/pages, events,
 peer-to-peer, auction); Campaigns module (detail dashboard w/ thermometer +
 source breakdown + cumulative chart, appeal performance + CRUD, segmented Asks
-with AI-drafted appeals sent via Tidings + tracked back via
+with AI-drafted appeals sent via Interactions + tracked back via
 engage_messages.appeal_id, board-ready PDF report w/ YoY, public campaign pages
 w/ donor wall, anonymous giving end-to-end, campaign/appeal attribution on
 manual gift entry); Canva Connect integration (feature-flagged per-user OAuth;
 "Design with Canva" picker + "Edit in Canva" round-trip on campaign covers, org
-logo, fundraiser heroes, and Tidings email graphics; exports copied to a public
+logo, fundraiser heroes, and Interactions email graphics; exports copied to a public
 S3 media bucket at a stable key so edits overwrite in place).
 Phase-1 CRM (dashboard/gifts/constituents+merge/funds/campaigns/pledges/reports/
 QuickBooks export/Dori assistant/receipts) intact. 14 migrations applied.

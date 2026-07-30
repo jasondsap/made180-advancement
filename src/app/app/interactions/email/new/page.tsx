@@ -26,7 +26,7 @@ export default async function NewEmailPage() {
   return (
     <div>
       <p style={{ marginBottom: ".5rem" }}>
-        <Link href="/app/tidings/email" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Emails</Link>
+        <Link href="/app/interactions/email" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Emails</Link>
       </p>
       <h2 style={{ fontSize: "1.25rem", margin: "0 0 1rem" }}>New email</h2>
       <EmailComposer

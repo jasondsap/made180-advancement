@@ -19,7 +19,7 @@ Each item is marked:
 
 | Variable | Status | What breaks without it |
 |---|---|---|
-| `CRON_SECRET` | 🆕 **Required for scheduling** | Scheduled Tidings sends never fire; stuck sends aren't auto-resumed (manual "Resume" still works). Generate: `openssl rand -base64 32`. |
+| `CRON_SECRET` | 🆕 **Required for scheduling** | Scheduled Interactions sends never fire; stuck sends aren't auto-resumed (manual "Resume" still works). Generate: `openssl rand -base64 32`. |
 | `RESEND_WEBHOOK_SECRET` | ♻️ **Now mandatory in prod** | The Resend webhook **fails closed** (503) without it — no delivery/open/click/bounce tracking, no complaint/bounce suppression. Get it when creating the webhook in Resend (§4). |
 | `TWILIO_AUTH_TOKEN` | ♻️ **Now mandatory in prod (if SMS on)** | Twilio webhooks **fail closed** (503) — no SMS delivery status, no STOP/START processing. |
 | `APP_BASE_URL` | ⬜ | Now also used by: manage-billing links in receipts, dunning emails, the embed snippet, cron. Must be the real production domain. |
@@ -27,7 +27,7 @@ Each item is marked:
 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | ⬜ | App + migrations (unchanged). |
 | `NEXTAUTH_SECRET`, `NEXTAUTH_URL` | ⬜ | Auth; also signs unsubscribe AND 🆕 manage-billing tokens. Rotating it invalidates links already sent in emails. |
 | `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`/`COGNITO_ISSUER` | ⬜ | Sign-in; 🆕 the invite flow also uses `COGNITO_REGION` + `COGNITO_USER_POOL_ID` server-side. |
-| `RESEND_API_KEY`, `RESEND_FROM_FALLBACK` | ⬜ | All email: receipts, Tidings, 🆕 dunning, 🆕 tribute eCards, 🆕 pledge reminders. |
+| `RESEND_API_KEY`, `RESEND_FROM_FALLBACK` | ⬜ | All email: receipts, Interactions, 🆕 dunning, 🆕 tribute eCards, 🆕 pledge reminders. |
 | `TWILIO_ACCOUNT_SID` + `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_FROM_NUMBER` | ⬜ | SMS sending (with `ENGAGE_SMS_ENABLED`). |
 | `ANTHROPIC_API_KEY` | ⬜ | Assistant + AI appeal drafts (now rate-limited per user, no config needed). |
 | `TOKEN_ENC_KEY` | ⬜ | Canva token encryption (32-byte base64). |
@@ -118,15 +118,19 @@ only). The account-takeover hole is closed in code regardless, but keep it off.
 3. **Open/click tracking** 🆕 — Resend dashboard → your domain → enable **open tracking**
    and **click tracking**. Without this Resend never emits `email.opened`/`email.clicked`,
    so those stats stay at zero (delivery/bounce still works).
-4. **Per-org domains** are handled in-app (Tidings → Settings → Domains) — see §6.
+4. **Per-org domains** are handled in-app (Interactions → Settings → Domains) — see §6.
 
 ---
 
-## 5. Tidings cron 🆕 (scheduled sends + auto-resume)
+## 5. Interactions cron 🆕 (scheduled sends + auto-resume)
 
 Point any minute-level scheduler at the sweeper. It fires due scheduled emails/texts and
 resumes sends interrupted mid-drain. Safe to run every minute; overlapping ticks cannot
 double-send.
+
+> The module is named **Interactions** in the UI, but its API routes keep the older
+> `/api/tidings/*` prefix so already-registered webhook and cron URLs keep working.
+> Use the paths exactly as written below.
 
 ```
 POST {APP_BASE_URL}/api/tidings/cron
@@ -163,12 +167,12 @@ Done in the UI — no env vars. For each org you onboard:
 3. **Members** 🆕 — add by email; the Cognito invitation sends automatically (§3).
 4. Legal name, EIN, receipt from-email, signatory, mailing address.
 
-**Org admin** (`/app/settings` + `/app/tidings/settings`):
+**Org admin** (`/app/settings` + `/app/interactions/settings`):
 5. Logo + primary color (Settings). The 🆕 embed snippet is on this page too.
-6. **Tidings → Domains**: register the org's sending domain, add the DNS records at
+6. **Interactions → Domains**: register the org's sending domain, add the DNS records at
    their registrar, verify.
-7. **Tidings → Senders**: create a sender on the verified domain, mark default.
-8. **Tidings → Addresses**: the organization's postal address. ♻️ **Now enforced** —
+7. **Interactions → Senders**: create a sender on the verified domain, mark default.
+8. **Interactions → Addresses**: the organization's postal address. ♻️ **Now enforced** —
    Phase 3's send preflight refuses to send marketing email without a sender AND a
    postal address (CAN-SPAM), with a clear error instead of a silent bad send.
 9. Receipt from-email in Settings must be on a Resend-verified domain or receipts
@@ -188,8 +192,8 @@ duplicate. Rows without email are created fresh each run — don't re-import tho
 - [ ] Stripe dashboard → webhook endpoint shows the full event list (§2a), recent deliveries all `200`
 - [ ] `/app/admin/orgs` shows **no** "webhook events failed" panel
 - [ ] Add a test member by email → invitation email with temp password arrives → first sign-in works
-- [ ] Tidings: send a test email to yourself → delivered/opened stats advance (proves Resend webhook + tracking)
-- [ ] Schedule a Tidings email 2 minutes out → it sends (proves cron)
+- [ ] Interactions: send a test email to yourself → delivered/opened stats advance (proves Resend webhook + tracking)
+- [ ] Schedule a Interactions email 2 minutes out → it sends (proves cron)
 - [ ] Cron curl: `200` with Bearer secret, `401` without
 - [ ] Import a 5-row test CSV, then re-import the same file → second run creates 0 duplicates
 - [ ] `/embed/nvre` renders; iframe snippet from Settings works on an external page

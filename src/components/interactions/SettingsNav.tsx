@@ -10,12 +10,12 @@ export function SettingsNav({
 }) {
   const pathname = usePathname() ?? "";
   const items = [
-    { label: "Email Domains", href: "/app/tidings/settings/domains", complete: status.domains },
-    { label: "Email Senders", href: "/app/tidings/settings/senders", complete: status.senders },
-    { label: "Branding", href: "/app/tidings/settings/branding", complete: true },
-    { label: "Addresses", href: "/app/tidings/settings/addresses", complete: status.addresses },
-    { label: "Merge Fields", href: "/app/tidings/settings/merge-fields", complete: true },
-    { label: "Segments", href: "/app/tidings/settings/segments", complete: true },
+    { label: "Email Domains", href: "/app/interactions/settings/domains", complete: status.domains },
+    { label: "Email Senders", href: "/app/interactions/settings/senders", complete: status.senders },
+    { label: "Branding", href: "/app/interactions/settings/branding", complete: true },
+    { label: "Addresses", href: "/app/interactions/settings/addresses", complete: status.addresses },
+    { label: "Merge Fields", href: "/app/interactions/settings/merge-fields", complete: true },
+    { label: "Segments", href: "/app/interactions/settings/segments", complete: true },
   ];
   return (
     <aside style={{ width: 220, flexShrink: 0 }}>

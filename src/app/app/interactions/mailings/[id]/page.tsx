@@ -81,5 +81,5 @@ export default async function MailingPage({
 }
 
 function Back() {
-  return <p style={{ marginBottom: ".5rem" }}><Link href="/app/tidings/mailings" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Mailings</Link></p>;
+  return <p style={{ marginBottom: ".5rem" }}><Link href="/app/interactions/mailings" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Mailings</Link></p>;
 }

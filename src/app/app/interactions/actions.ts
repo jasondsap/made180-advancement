@@ -26,7 +26,7 @@ const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 async function requireManager() {
   const ctx = await getAuthContext();
   if (!ctx) throw new Error("unauthorized");
-  if (!canManage(ctx.role)) throw new Error("forbidden: Tidings requires an admin role");
+  if (!canManage(ctx.role)) throw new Error("forbidden: Interactions requires an admin role");
   return ctx;
 }
 
@@ -72,8 +72,8 @@ export async function createDomainAction(fd: FormData) {
     throw new Error(`Could not register domain with Resend: ${e instanceof Error ? e.message : "unknown error"}`);
   }
   await createDomain(ctx.orgId, { domain, dnsRecords: records, resendDomainId: resendId });
-  revalidatePath("/app/tidings/settings/domains");
-  redirect("/app/tidings/settings/domains?msg=added");
+  revalidatePath("/app/interactions/settings/domains");
+  redirect("/app/interactions/settings/domains?msg=added");
 }
 
 export async function verifyDomainAction(fd: FormData) {
@@ -90,15 +90,15 @@ export async function verifyDomainAction(fd: FormData) {
   } catch (e) {
     throw new Error(`Verification check failed: ${e instanceof Error ? e.message : "unknown error"}`);
   }
-  revalidatePath("/app/tidings/settings/domains");
-  redirect("/app/tidings/settings/domains");
+  revalidatePath("/app/interactions/settings/domains");
+  redirect("/app/interactions/settings/domains");
 }
 
 export async function deleteDomainAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteDomain(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/settings/domains");
-  redirect("/app/tidings/settings/domains");
+  revalidatePath("/app/interactions/settings/domains");
+  redirect("/app/interactions/settings/domains");
 }
 
 // ---------- Senders ----------
@@ -114,22 +114,22 @@ export async function createSenderAction(fd: FormData) {
       isDefault: fd.get("isDefault") === "on",
     });
   }
-  revalidatePath("/app/tidings/settings/senders");
-  redirect("/app/tidings/settings/senders");
+  revalidatePath("/app/interactions/settings/senders");
+  redirect("/app/interactions/settings/senders");
 }
 
 export async function setDefaultSenderAction(fd: FormData) {
   const ctx = await requireManager();
   await setDefaultSender(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/settings/senders");
-  redirect("/app/tidings/settings/senders");
+  revalidatePath("/app/interactions/settings/senders");
+  redirect("/app/interactions/settings/senders");
 }
 
 export async function deleteSenderAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteSender(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/settings/senders");
-  redirect("/app/tidings/settings/senders");
+  revalidatePath("/app/interactions/settings/senders");
+  redirect("/app/interactions/settings/senders");
 }
 
 // ---------- Addresses ----------
@@ -146,15 +146,15 @@ export async function createAddressAction(fd: FormData) {
     postalCode: str(fd, "postalCode"),
     country: str(fd, "country") || "US",
   });
-  revalidatePath("/app/tidings/settings/addresses");
-  redirect("/app/tidings/settings/addresses");
+  revalidatePath("/app/interactions/settings/addresses");
+  redirect("/app/interactions/settings/addresses");
 }
 
 export async function deleteAddressAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteAddress(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/settings/addresses");
-  redirect("/app/tidings/settings/addresses");
+  revalidatePath("/app/interactions/settings/addresses");
+  redirect("/app/interactions/settings/addresses");
 }
 
 // ---------- Merge fields ----------
@@ -164,22 +164,22 @@ export async function createMergeFieldAction(fd: FormData) {
   if (str(fd, "name") && str(fd, "tag")) {
     await createMergeField(ctx.orgId, { name: str(fd, "name"), tag: str(fd, "tag"), defaultValue: str(fd, "defaultValue") || null });
   }
-  revalidatePath("/app/tidings/settings/merge-fields");
-  redirect("/app/tidings/settings/merge-fields");
+  revalidatePath("/app/interactions/settings/merge-fields");
+  redirect("/app/interactions/settings/merge-fields");
 }
 
 export async function updateMergeFieldAction(fd: FormData) {
   const ctx = await requireManager();
   await updateMergeFieldDefault(ctx.orgId, str(fd, "id"), str(fd, "defaultValue") || null);
-  revalidatePath("/app/tidings/settings/merge-fields");
-  redirect("/app/tidings/settings/merge-fields");
+  revalidatePath("/app/interactions/settings/merge-fields");
+  redirect("/app/interactions/settings/merge-fields");
 }
 
 export async function deleteMergeFieldAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteMergeField(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/settings/merge-fields");
-  redirect("/app/tidings/settings/merge-fields");
+  revalidatePath("/app/interactions/settings/merge-fields");
+  redirect("/app/interactions/settings/merge-fields");
 }
 
 // ---------- Email messages ----------
@@ -200,8 +200,8 @@ export async function saveEmailDraftAction(fd: FormData) {
   } else {
     await createMessage(ctx.orgId, { channel: "email", ...fields, createdBy: ctx.user.id });
   }
-  revalidatePath("/app/tidings/email");
-  redirect("/app/tidings/email?tab=drafts&msg=saved");
+  revalidatePath("/app/interactions/email");
+  redirect("/app/interactions/email?tab=drafts&msg=saved");
 }
 
 /** Create/update the draft, then send it now. Redirects to the message detail. */
@@ -224,8 +224,8 @@ export async function sendEmailNowAction(fd: FormData) {
   const msg = await getMessage(ctx.orgId, id);
   if (!msg?.subject || !msg.body_md) throw new Error("Subject and body are required to send");
   const result = await sendEmailMessage(ctx.orgId, id);
-  revalidatePath("/app/tidings/email");
-  redirect(`/app/tidings/email/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+  revalidatePath("/app/interactions/email");
+  redirect(`/app/interactions/email/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
 }
 
 /** Create/update the draft, then schedule it for later delivery. */
@@ -252,8 +252,8 @@ export async function scheduleEmailAction(fd: FormData) {
   const msg = await getMessage(ctx.orgId, id);
   if (!msg?.subject || !msg.body_md) throw new Error("Subject and body are required to schedule");
   await scheduleMessage(ctx.orgId, id, when);
-  revalidatePath("/app/tidings/email");
-  redirect(`/app/tidings/email?tab=outbox&msg=scheduled`);
+  revalidatePath("/app/interactions/email");
+  redirect(`/app/interactions/email?tab=outbox&msg=scheduled`);
 }
 
 /** Un-schedule an outbox message back to drafts. */
@@ -261,8 +261,8 @@ export async function cancelScheduleAction(fd: FormData) {
   const ctx = await requireManager();
   const id = str(fd, "id");
   await cancelSchedule(ctx.orgId, id);
-  revalidatePath("/app/tidings/email");
-  redirect(`/app/tidings/email?tab=drafts&msg=unscheduled`);
+  revalidatePath("/app/interactions/email");
+  redirect(`/app/interactions/email?tab=drafts&msg=unscheduled`);
 }
 
 /** Continue a send that was interrupted mid-drain (message stuck in 'sending'). */
@@ -270,8 +270,8 @@ export async function resumeEmailSendAction(fd: FormData) {
   const ctx = await requireManager();
   const id = str(fd, "id");
   const result = await drainEmailMessage(ctx.orgId, id);
-  revalidatePath(`/app/tidings/email/${id}`);
-  redirect(`/app/tidings/email/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+  revalidatePath(`/app/interactions/email/${id}`);
+  redirect(`/app/interactions/email/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
 }
 
 /** Re-queue failed recipients and drain again. */
@@ -284,15 +284,15 @@ export async function retryFailedEmailAction(fd: FormData) {
     await setMessageStatus(ctx.orgId, id, "sending");
     await drainEmailMessage(ctx.orgId, id);
   }
-  revalidatePath(`/app/tidings/email/${id}`);
-  redirect(`/app/tidings/email/${id}?msg=retried`);
+  revalidatePath(`/app/interactions/email/${id}`);
+  redirect(`/app/interactions/email/${id}?msg=retried`);
 }
 
 export async function deleteMessageAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteMessage(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/email");
-  redirect("/app/tidings/email?tab=drafts");
+  revalidatePath("/app/interactions/email");
+  redirect("/app/interactions/email?tab=drafts");
 }
 
 // ---------- SMS messages ----------
@@ -303,8 +303,8 @@ export async function saveSmsDraftAction(fd: FormData) {
   const fields = { name: str(fd, "name") || "Untitled text", bodyMd: str(fd, "body") || null, audience: buildAudience(fd) };
   if (id) await updateMessage(ctx.orgId, id, fields);
   else await createMessage(ctx.orgId, { channel: "sms", ...fields, createdBy: ctx.user.id });
-  revalidatePath("/app/tidings/texts");
-  redirect("/app/tidings/texts?tab=drafts&msg=saved");
+  revalidatePath("/app/interactions/texts");
+  redirect("/app/interactions/texts?tab=drafts&msg=saved");
 }
 
 export async function sendSmsNowAction(fd: FormData) {
@@ -320,8 +320,8 @@ export async function sendSmsNowAction(fd: FormData) {
   const msg = await getMessage(ctx.orgId, id);
   if (!msg?.body_md) throw new Error("Message body is required to send");
   const result = await sendSmsMessage(ctx.orgId, id);
-  revalidatePath("/app/tidings/texts");
-  redirect(`/app/tidings/texts/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+  revalidatePath("/app/interactions/texts");
+  redirect(`/app/interactions/texts/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
 }
 
 /** Continue an SMS send that was interrupted mid-drain. */
@@ -329,15 +329,15 @@ export async function resumeSmsSendAction(fd: FormData) {
   const ctx = await requireManager();
   const id = str(fd, "id");
   const result = await drainSmsMessage(ctx.orgId, id);
-  revalidatePath(`/app/tidings/texts/${id}`);
-  redirect(`/app/tidings/texts/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
+  revalidatePath(`/app/interactions/texts/${id}`);
+  redirect(`/app/interactions/texts/${id}?msg=${result.remaining > 0 ? "sending" : "sent"}`);
 }
 
 export async function deleteSmsMessageAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteMessage(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/texts");
-  redirect("/app/tidings/texts?tab=drafts");
+  revalidatePath("/app/interactions/texts");
+  redirect("/app/interactions/texts?tab=drafts");
 }
 
 // ---------- Mailings (printable letters; channel 'mail') ----------
@@ -348,8 +348,8 @@ export async function saveMailingDraftAction(fd: FormData) {
   const fields = { name: str(fd, "name") || "Untitled mailing", bodyMd: str(fd, "body") || null, audience: buildAudience(fd) };
   if (id) await updateMessage(ctx.orgId, id, fields);
   else await createMessage(ctx.orgId, { channel: "mail", ...fields, createdBy: ctx.user.id });
-  revalidatePath("/app/tidings/mailings");
-  redirect("/app/tidings/mailings?tab=drafts&msg=saved");
+  revalidatePath("/app/interactions/mailings");
+  redirect("/app/interactions/mailings?tab=drafts&msg=saved");
 }
 
 /** Freeze the recipient list (contacts with a mailing address) and mark generated. */
@@ -372,15 +372,15 @@ export async function generateMailingAction(fd: FormData) {
     recipients.map((c) => ({ constituentId: c.id, type: "mailing" as const, subject: fields.name })),
   ).catch(() => {});
   await setMessageStatus(ctx.orgId, id, "sent", { recipientCount: recipients.length, sentAt: new Date() });
-  revalidatePath("/app/tidings/mailings");
-  redirect(`/app/tidings/mailings/${id}?msg=generated`);
+  revalidatePath("/app/interactions/mailings");
+  redirect(`/app/interactions/mailings/${id}?msg=generated`);
 }
 
 export async function deleteMailingAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteMessage(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/mailings");
-  redirect("/app/tidings/mailings?tab=drafts");
+  revalidatePath("/app/interactions/mailings");
+  redirect("/app/interactions/mailings?tab=drafts");
 }
 
 // ---------- Saved segments (reusable, dynamic audiences) ----------
@@ -422,8 +422,8 @@ export async function createSegmentAction(fd: FormData) {
     criteria: buildCriteria(fd),
     createdBy: ctx.user.id,
   });
-  revalidatePath("/app/tidings/settings/segments");
-  redirect("/app/tidings/settings/segments?msg=saved");
+  revalidatePath("/app/interactions/settings/segments");
+  redirect("/app/interactions/settings/segments?msg=saved");
 }
 
 export async function updateSegmentAction(fd: FormData) {
@@ -436,13 +436,13 @@ export async function updateSegmentAction(fd: FormData) {
     description: str(fd, "description") || null,
     criteria: buildCriteria(fd),
   });
-  revalidatePath("/app/tidings/settings/segments");
-  redirect("/app/tidings/settings/segments?msg=saved");
+  revalidatePath("/app/interactions/settings/segments");
+  redirect("/app/interactions/settings/segments?msg=saved");
 }
 
 export async function deleteSegmentAction(fd: FormData) {
   const ctx = await requireManager();
   await deleteSegment(ctx.orgId, str(fd, "id"));
-  revalidatePath("/app/tidings/settings/segments");
-  redirect("/app/tidings/settings/segments");
+  revalidatePath("/app/interactions/settings/segments");
+  redirect("/app/interactions/settings/segments");
 }

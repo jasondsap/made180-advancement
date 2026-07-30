@@ -90,7 +90,7 @@ export default async function TextMessagePage({
 }
 
 function Back() {
-  return <p style={{ marginBottom: ".5rem" }}><Link href="/app/tidings/texts" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Texts</Link></p>;
+  return <p style={{ marginBottom: ".5rem" }}><Link href="/app/interactions/texts" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Texts</Link></p>;
 }
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (

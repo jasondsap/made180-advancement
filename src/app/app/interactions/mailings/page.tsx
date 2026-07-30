@@ -45,16 +45,16 @@ export default async function MailingsPage({ searchParams }: { searchParams: Pro
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <SubTabs items={TABS.map((t) => ({ key: t.key, label: t.label, href: `/app/tidings/mailings?tab=${t.key}` }))} active={active.key} />
-        {canManage(ctx.role) && <Link href="/app/tidings/mailings/new" style={btnPrimary}>New mailing</Link>}
+        <SubTabs items={TABS.map((t) => ({ key: t.key, label: t.label, href: `/app/interactions/mailings?tab=${t.key}` }))} active={active.key} />
+        {canManage(ctx.role) && <Link href="/app/interactions/mailings/new" style={btnPrimary}>New mailing</Link>}
       </div>
       {msg === "saved" && <Banner>Draft saved.</Banner>}
 
       <DataTable
         columns={columns}
         rows={messages}
-        rowActions={(r) => <Link href={`/app/tidings/mailings/${r.id}`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>{r.status === "draft" ? "Edit" : "View"}</Link>}
-        empty={<EmptyState icon="✉" title={`No ${active.label.toLowerCase()} yet`} description="Compose a letter and generate a print-ready PDF." action={canManage(ctx.role) ? <Link href="/app/tidings/mailings/new" style={btnPrimary}>New mailing</Link> : undefined} />}
+        rowActions={(r) => <Link href={`/app/interactions/mailings/${r.id}`} style={{ color: "var(--brand)", fontSize: ".85rem" }}>{r.status === "draft" ? "Edit" : "View"}</Link>}
+        empty={<EmptyState icon="✉" title={`No ${active.label.toLowerCase()} yet`} description="Compose a letter and generate a print-ready PDF." action={canManage(ctx.role) ? <Link href="/app/interactions/mailings/new" style={btnPrimary}>New mailing</Link> : undefined} />}
       />
     </div>
   );

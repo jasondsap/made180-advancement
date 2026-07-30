@@ -3,9 +3,13 @@ import { assertOrgId } from "@/lib/tenancy";
 import type { Interaction, InteractionType } from "@/types/db";
 
 /**
- * Interactions — the per-constituent activity timeline. Manual touches (call,
- * meeting, note) are logged from the constituent page; Tidings sends auto-log
- * via `bulkLogInteractions`. All org-scoped.
+ * The per-constituent **Activity** timeline (table: `interactions`). Manual
+ * touches (call, meeting, note) are logged from the constituent page; sends from
+ * the Interactions module auto-log via `bulkLogInteractions`. All org-scoped.
+ *
+ * Note the two senses of the word: this is the CRM touchpoint log, labelled
+ * "Activity" in the UI. The donor-messaging module at /app/interactions is what
+ * users call "Interactions" — its data layer is the `engage_*` tables.
  */
 
 export async function listInteractions(orgId: string, constituentId: string): Promise<Interaction[]> {
@@ -46,8 +50,9 @@ export async function deleteInteraction(orgId: string, id: string): Promise<void
 }
 
 /**
- * Auto-log one interaction per constituent for a completed Tidings send. Single
- * multi-row insert (mirrors bulkInsertRecipients' cost profile). No-op on empty.
+ * Auto-log one activity row per constituent for a completed Interactions-module
+ * send. Single multi-row insert (mirrors bulkInsertRecipients' cost profile).
+ * No-op on empty.
  */
 export async function bulkLogInteractions(
   orgId: string,

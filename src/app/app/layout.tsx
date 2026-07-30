@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: "/app/funds", label: "Funds" },
     { href: "/app/campaigns", label: "Campaigns" },
     { href: "/app/fundraisers", label: "Fundraisers" },
-    { href: "/app/tidings", label: "Tidings" },
+    { href: "/app/interactions", label: "Interactions" },
     { href: "/app/assistant", label: "Assistant" },
   ];
   if (canManage(role)) sideNav.push({ href: "/app/import", label: "Import" });

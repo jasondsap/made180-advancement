@@ -104,7 +104,7 @@ export async function updateAppealAction(fd: FormData) {
 /**
  * The Asks commit step: resolve the segment, create the appeal (only now, so
  * abandoned drafts never orphan appeal rows), substitute the tracking link for
- * {{appeal_link}}, create + send the Tidings email, and link message → appeal.
+ * {{appeal_link}}, create + send the Interactions email, and link message → appeal.
  */
 export async function sendAppealAskAction(fd: FormData) {
   const ctx = await requireManager();

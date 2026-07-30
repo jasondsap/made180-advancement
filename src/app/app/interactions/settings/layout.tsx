@@ -3,7 +3,7 @@ import { getAuthContext } from "@/lib/auth";
 import { hasVerifiedDomain } from "@/repositories/engage/domains";
 import { listSenders } from "@/repositories/engage/senders";
 import { getAddressByType } from "@/repositories/engage/addresses";
-import { SettingsNav } from "@/components/tidings/SettingsNav";
+import { SettingsNav } from "@/components/interactions/SettingsNav";
 
 export const dynamic = "force-dynamic";
 

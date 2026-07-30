@@ -83,13 +83,13 @@ export async function sendEmailMessage(
   // in 'sending'. CAN-SPAM requires a postal address in every marketing email.
   const sender = message.sender_id ? await getSender(orgId, message.sender_id) : await getDefaultSender(orgId);
   if (!sender && !org.receipt_from_email) {
-    throw new Error("Add a verified sender in Tidings → Settings → Senders before sending.");
+    throw new Error("Add a verified sender in Interactions → Settings → Senders before sending.");
   }
   const orgAddress = await getAddressByType(orgId, "organization");
   const hasPostal = Boolean(orgAddress) || Boolean((org.address_json as { line1?: string } | null)?.line1);
   if (!hasPostal) {
     throw new Error(
-      "Add your organization's mailing address (Tidings → Settings → Addresses) — required on every email by CAN-SPAM.",
+      "Add your organization's mailing address (Interactions → Settings → Addresses) — required on every email by CAN-SPAM.",
     );
   }
 

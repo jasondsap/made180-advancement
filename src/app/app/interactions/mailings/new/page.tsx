@@ -22,7 +22,7 @@ export default async function NewMailingPage() {
   return (
     <div>
       <p style={{ marginBottom: ".5rem" }}>
-        <Link href="/app/tidings/mailings" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Mailings</Link>
+        <Link href="/app/interactions/mailings" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Mailings</Link>
       </p>
       <h2 style={{ fontSize: "1.25rem", margin: "0 0 1rem" }}>New mailing</h2>
       <MailingComposer

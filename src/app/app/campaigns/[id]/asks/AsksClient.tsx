@@ -11,7 +11,7 @@ interface SegmentDef {
 
 /**
  * The segmented-ask flow: pick a segment → see live counts → AI-draft the
- * appeal → edit → send. Sending creates the appeal + a Tidings email message
+ * appeal → edit → send. Sending creates the appeal + an Interactions email message
  * (consent-filtered) and substitutes {{appeal_link}} with the tracking link.
  */
 export function AsksClient({ campaignId, segments }: { campaignId: string; segments: SegmentDef[] }) {
@@ -143,7 +143,7 @@ export function AsksClient({ campaignId, segments }: { campaignId: string; segme
           <input type="hidden" name="subject" value={subject} />
           <input type="hidden" name="body" value={body} />
           <p style={{ ...muted, marginTop: 0 }}>
-            Sends now through Tidings from your default sender. Consent (unsubscribes, do-not-contact) is applied automatically, every email carries your postal footer + unsubscribe link, and each send is logged on the constituent&apos;s timeline.
+            Sends now through Interactions from your default sender. Consent (unsubscribes, do-not-contact) is applied automatically, every email carries your postal footer + unsubscribe link, and each send is logged on the constituent&apos;s timeline.
           </p>
           <button type="submit" disabled={!canSend || sending} style={{ ...btnPrimary, opacity: !canSend || sending ? 0.6 : 1 }}>
             {sending ? "Sending…" : `Send to ${preview?.reachable ?? 0} recipient${(preview?.reachable ?? 0) === 1 ? "" : "s"}`}

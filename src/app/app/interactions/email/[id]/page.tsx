@@ -138,7 +138,7 @@ export default async function MessagePage({
 const actionBtn: React.CSSProperties = { padding: ".45rem .9rem", borderRadius: 7, background: "transparent", color: "var(--brand)", border: "1px solid var(--brand)", fontSize: ".85rem", fontWeight: 600, cursor: "pointer" };
 
 function Back() {
-  return <p style={{ marginBottom: ".5rem" }}><Link href="/app/tidings/email" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Emails</Link></p>;
+  return <p style={{ marginBottom: ".5rem" }}><Link href="/app/interactions/email" style={{ color: "var(--brand)", fontSize: ".88rem" }}>← Emails</Link></p>;
 }
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (

@@ -10,7 +10,7 @@ import { sendEmailMessage, drainEmailMessage } from "@/domain/engage/send";
 import { sendSmsMessage, drainSmsMessage } from "@/domain/engage/sendSms";
 
 /**
- * Tidings sweeper — fires due SCHEDULED messages and resumes sends STUCK in
+ * Interactions sweeper — fires due SCHEDULED messages and resumes sends STUCK in
  * 'sending' (crashed / timed-out drain). Point any minute-level scheduler at
  * it (EventBridge Scheduler, cron-job.org, GitHub Actions cron):
  *
