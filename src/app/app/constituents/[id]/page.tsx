@@ -10,8 +10,8 @@ import { listRelationships, REL_TYPES } from "@/repositories/relationships";
 import { listInteractions } from "@/repositories/interactions";
 import { listTasksForConstituent } from "@/repositories/tasks";
 import { listMembersForOrg } from "@/repositories/users";
-import { usd, fmtDate } from "@/lib/format";
-import type { Interaction, Task } from "@/types/db";
+import { usd, fmtDate, fmtTime } from "@/lib/format";
+import { TASK_TYPES, TASK_TYPE_LABELS, type Interaction, type Task } from "@/types/db";
 import {
   addRoleAction, removeRoleAction, addRelationshipAction, removeRelationshipAction, mergeAction,
   logInteractionAction, deleteInteractionAction, cancelRecurringPlanAction,
@@ -105,7 +105,12 @@ export default async function ConstituentDetailPage({
           <input type="hidden" name="constituentId" value={id} />
           <input type="hidden" name="next" value={`/app/constituents/${id}`} />
           <input name="title" placeholder="Add a follow-up task" style={{ ...inp, flex: 1, minWidth: 200 }} required />
+          <select name="type" style={inp} title="Task type" defaultValue="">
+            <option value="">Type —</option>
+            {TASK_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
           <input type="date" name="dueAt" style={inp} title="Due date" />
+          <input type="time" name="dueTime" style={inp} title="Due time" />
           <select name="assignedTo" style={inp} title="Assign to">
             <option value="">Unassigned</option>
             {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name || m.email}</option>)}
@@ -315,8 +320,13 @@ function ConTaskRow({ t, conId }: { t: Task; conId: string }) {
         <button type="submit" title={isDone ? "Reopen" : "Mark done"} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid var(--brand)", background: isDone ? "var(--brand)" : "#fff", color: "#fff", cursor: "pointer", fontSize: ".7rem", lineHeight: 1, padding: 0 }}>{isDone ? "✓" : ""}</button>
       </form>
       <span style={{ flex: 1, textDecoration: isDone ? "line-through" : "none", color: isDone ? "#999" : "inherit" }}>
+        {t.type && <span style={{ fontSize: ".7rem", textTransform: "uppercase", letterSpacing: ".04em", color: "var(--brand)", marginRight: ".4rem" }}>{TASK_TYPE_LABELS[t.type] ?? t.type}</span>}
         {t.title}
-        {t.due_at && <span style={{ color: overdue ? "#9b1c1c" : "#999", fontSize: ".8rem", fontWeight: overdue ? 600 : 400 }}> · {overdue ? "overdue " : "due "}{fmtDate(t.due_at)}</span>}
+        {t.due_at && (
+          <span style={{ color: overdue ? "#9b1c1c" : "#999", fontSize: ".8rem", fontWeight: overdue ? 600 : 400 }}>
+            {" "}· {overdue ? "overdue " : "due "}{fmtDate(t.due_at)}{fmtTime(t.due_time) ? ` at ${fmtTime(t.due_time)}` : ""}
+          </span>
+        )}
       </span>
       <form action={deleteTaskAction}>
         <input type="hidden" name="taskId" value={t.id} />

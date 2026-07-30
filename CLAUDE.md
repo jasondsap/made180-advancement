@@ -58,7 +58,10 @@ Anthropic SDK (assistant). Deploys to AWS Amplify (SSR).
   0013 campaigns (campaign description/category/cover/public_slug, appeal
   ask_amount/sent_on, gifts.is_anonymous, engage_messages.appeal_id, attribution
   indexes) · 0014 canva (canva_connections per-user OAuth tokens +
-  canva_media org-scoped exports). Runner: `scripts/migrate.ts`
+  canva_media org-scoped exports) · 0015–0022 (Phases 0–5: rate limits,
+  integrity constraints, stripe customer, gift external ref, org features,
+  p2p teams, registrant check-in, CRM depth) · 0023 tasks.type + tasks.due_time.
+  Runner: `scripts/migrate.ts`
   (`DATABASE_URL_UNPOOLED`; checksums applied files).
 - `src/lib/` — `env.ts` (all-optional literal reads + `requireEnv`; build-safe —
   new vars MUST also be mirrored in `next.config.mjs` `env:` block to reach the
@@ -243,7 +246,18 @@ manual gift entry); Canva Connect integration (feature-flagged per-user OAuth;
 logo, fundraiser heroes, and Interactions email graphics; exports copied to a public
 S3 media bucket at a stable key so edits overwrite in place).
 Phase-1 CRM (dashboard/gifts/constituents+merge/funds/campaigns/pledges/reports/
-QuickBooks export/Dori assistant/receipts) intact. 14 migrations applied.
+QuickBooks export/Dori assistant/receipts) intact. 23 migrations applied.
+
+**Tasks** carry an activity `type` (call/email/letter/visit/meeting/thank_you/
+proposal/research/other — the list lives in `TASK_TYPES`, stored as free text so
+adding one needs no migration), a due `date` + optional `due_time`, and an
+optional constituent link chosen with `ConstituentPicker` (typeahead over
+`/api/constituents/search`, session-gated + org-scoped). `/app/tasks` searches
+title/notes/constituent name and sorts by due/type/constituent/recent, all via
+URL params so a filtered view is linkable.
+- `due_time` is `time` (wall clock), **not** folded into a timestamptz: there's
+  no per-org timezone in the schema and the app runs UTC, so "9:00 AM" would
+  render as the prior evening. Date + local time is what the user means.
 
 ## Deploy: AWS Amplify
 See `amplify.yml`: push to Git, connect in Amplify (Next.js SSR auto-detected),

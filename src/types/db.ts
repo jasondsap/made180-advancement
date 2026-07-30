@@ -240,13 +240,42 @@ export interface Interaction {
 
 export type TaskStatus = "open" | "done";
 
+export type TaskType =
+  | "call" | "email" | "letter" | "visit" | "meeting"
+  | "thank_you" | "proposal" | "research" | "other";
+
+/**
+ * Task types in menu order, with display labels. Stored as free text (see
+ * migration 0023), so adding an entry here needs no migration — but don't
+ * *rename* a key, or existing rows stop matching the filter.
+ */
+export const TASK_TYPES: ReadonlyArray<{ value: TaskType; label: string }> = [
+  { value: "call", label: "Call" },
+  { value: "email", label: "Email" },
+  { value: "letter", label: "Letter" },
+  { value: "visit", label: "Visit" },
+  { value: "meeting", label: "Schedule meeting" },
+  { value: "thank_you", label: "Thank you" },
+  { value: "proposal", label: "Proposal" },
+  { value: "research", label: "Research" },
+  { value: "other", label: "Other" },
+];
+
+export const TASK_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  TASK_TYPES.map((t) => [t.value, t.label]),
+);
+
 export interface Task {
   id: string;
   org_id: string;
   constituent_id: string | null;
   title: string;
+  /** null on tasks created before migration 0023, and whenever left unset. */
+  type: TaskType | null;
   notes: string | null;
   due_at: Date | null;
+  /** Wall-clock time-of-day paired with due_at, 'HH:MM:SS'. No timezone — see migration 0023. */
+  due_time: string | null;
   status: TaskStatus;
   assigned_to: string | null;
   completed_at: Date | null;
