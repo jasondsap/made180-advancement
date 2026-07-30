@@ -6,6 +6,7 @@ import { getOrgById } from "@/repositories/orgs";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ArchMark } from "@/components/ArchMark";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
+import { AppTopNav, AppSideNav } from "@/components/AppNav";
 import { setActiveOrgAction } from "./orgActions";
 
 // The admin app is per-user, per-org and session-dependent — never static.
@@ -27,8 +28,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const org = await getOrgById(orgId);
   const accessibleOrgs = await listAccessibleOrgs(user);
 
-  const nav = [
+  // Top bar stays deliberately thin — everything else lives in the sidebar.
+  const topNav = [
     { href: "/app/dashboard", label: "Dashboard" },
+    { href: "/app/settings", label: "Settings" },
+  ];
+  if (role === "super_admin") topNav.push({ href: "/app/admin/orgs", label: "Admin" });
+
+  const sideNav = [
     { href: "/app/gifts", label: "Gifts" },
     { href: "/app/constituents", label: "Constituents" },
     { href: "/app/tasks", label: "Tasks" },
@@ -39,15 +46,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: "/app/fundraisers", label: "Fundraisers" },
     { href: "/app/tidings", label: "Tidings" },
     { href: "/app/assistant", label: "Assistant" },
-    { href: "/app/settings", label: "Settings" },
   ];
-  if (canManage(role)) nav.splice(nav.length - 1, 0, { href: "/app/import", label: "Import" });
-  if (role === "super_admin") nav.push({ href: "/app/admin/orgs", label: "Admin" });
+  if (canManage(role)) sideNav.push({ href: "/app/import", label: "Import" });
 
   return (
     <div style={{ fontFamily: "var(--font-ui)", color: "var(--app-text)", minHeight: "100vh", background: "var(--app-bg)" }}>
       <header style={{ background: "var(--app-surface)", borderBottom: "1px solid var(--app-border)", padding: "0 1.25rem" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: "1rem", height: 56 }}>
+        <div className="app-header-inner">
           <Link href="/app/dashboard" style={{ display: "flex", alignItems: "center", gap: ".5rem", textDecoration: "none" }}>
             <ArchMark height={26} />
             <span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.15rem", color: "var(--ink)" }}>Almonry</span>
@@ -65,20 +70,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               </span>
             )
           )}
-          <nav style={{ display: "flex", gap: ".25rem", flex: 1 }}>
-            {nav.map((n) => (
-              <Link key={n.href} href={n.href} style={{ padding: ".4rem .6rem", borderRadius: 6, color: "#3a352d", textDecoration: "none", fontSize: ".92rem" }}>
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-          <span style={{ fontSize: ".8rem", color: "var(--app-text-soft)" }}>
-            {user.email} · <RoleBadge role={role} />
+          <div style={{ flex: 1 }} />
+          <AppTopNav items={topNav} />
+          <span style={{ fontSize: ".8rem", color: "var(--app-text-soft)", whiteSpace: "nowrap" }}>
+            <span className="app-user-email">{user.email} · </span>
+            <RoleBadge role={role} />
           </span>
           <SignOutButton style={{ fontSize: ".85rem", color: "var(--brand)" }} />
         </div>
       </header>
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1.25rem 4rem" }}>{children}</main>
+      <div className="app-shell">
+        <AppSideNav items={sideNav} />
+        <main className="app-content">{children}</main>
+      </div>
     </div>
   );
 }
